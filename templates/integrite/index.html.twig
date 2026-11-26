@@ -1,0 +1,294 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Journal d'audit / Intégrité - G-Parc{% endblock %}
+
+{% block page_title %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <h1 class="h3 mb-0"><i class="bi bi-shield-check me-2"></i>Journal d'audit & Intégrité</h1>
+    <div class="d-flex gap-2">
+        <button type="button"
+                class="btn btn-sm btn-outline-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#modalPurge"
+                title="Purger les anciens logs">
+            <i class="bi bi-trash me-1"></i> Purger
+        </button>
+        <a href="{{ path('app_user_index') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-people me-1"></i> Utilisateurs
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{# Stats rapides #}
+<div class="row g-2 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-2">
+                <div class="d-flex align-items-center">
+                    <div class="bg-primary-subtle text-primary rounded-circle p-2 me-2">
+                        <i class="bi bi-journal-text"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Total entrées</div>
+                        <div class="fw-bold fs-5">{{ logs|length }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-2">
+                <div class="d-flex align-items-center">
+                    <div class="bg-success-subtle text-success rounded-circle p-2 me-2">
+                        <i class="bi bi-plus-circle"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Créations</div>
+                        <div class="fw-bold fs-5">
+                            {% set creates = actionStats|filter((s) => s.action == 'CREATE')|first %}
+                            {{ creates.count ?? 0 }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-2">
+                <div class="d-flex align-items-center">
+                    <div class="bg-warning-subtle text-dark rounded-circle p-2 me-2">
+                        <i class="bi bi-pencil-square"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Modifications</div>
+                        <div class="fw-bold fs-5">
+                            {% set updates = actionStats|filter((s) => s.action == 'UPDATE')|first %}
+                            {{ updates.count ?? 0 }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-2">
+                <div class="d-flex align-items-center">
+                    <div class="bg-danger-subtle text-danger rounded-circle p-2 me-2">
+                        <i class="bi bi-trash"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Suppressions</div>
+                        <div class="fw-bold fs-5">
+                            {% set deletes = actionStats|filter((s) => s.action == 'DELETE')|first %}
+                            {{ deletes.count ?? 0 }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Filtres #}
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-light border-0">
+        <h6 class="mb-0"><i class="bi bi-funnel me-1"></i> Filtres</h6>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold">Action</label>
+                <select name="action" class="form-select form-select-sm">
+                    <option value="">Toutes</option>
+                    {% for a in allActions|sort %}
+                        <option value="{{ a }}" {% if current_filters.action == a %}selected{% endif %}>
+                            {% set log = logs|filter((l) => l.action == a)|first %}
+                            {{ log.getActionLabel() ?? a }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold">Type d'entité</label>
+                <select name="entity_type" class="form-select form-select-sm">
+                    <option value="">Tous</option>
+                    {% for e in allEntityTypes|sort %}
+                        <option value="{{ e }}" {% if current_filters.entity_type == e %}selected{% endif %}>
+                            {{ e }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold">Utilisateur</label>
+                <input type="text"
+                       name="user"
+                       class="form-control form-control-sm"
+                       value="{{ current_filters.user }}"
+                       placeholder="Nom d'utilisateur...">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small fw-bold">Du</label>
+                <input type="date"
+                       name="date_from"
+                       class="form-control form-control-sm"
+                       value="{{ current_filters.date_from }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small fw-bold">Au</label>
+                <input type="date"
+                       name="date_to"
+                       class="form-control form-control-sm"
+                       value="{{ current_filters.date_to }}">
+            </div>
+            <div class="col-12 col-md-auto">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-search me-1"></i> Filtrer
+                </button>
+                <a href="{{ path('app_integrite_index') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-x-circle me-1"></i> Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# Tableau des logs #}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-light border-0 d-flex align-items-center justify-content-between">
+        <h6 class="mb-0"><i class="bi bi-list-ul me-1"></i> Dernières actions (max 500)</h6>
+        <span class="badge bg-secondary-subtle text-dark">{{ logs|length }} entrée(s)</span>
+    </div>
+    <div class="card-body p-0">
+        {% if logs %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 gta-data-table" data-shortcuts="list" data-target="shortcuts.list">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th style="width: 150px;">Date / Heure</th>
+                            <th style="width: 110px;">Action</th>
+                            <th>Utilisateur</th>
+                            <th style="width: 160px;">Entité concernée</th>
+                            <th>Détails</th>
+                            <th style="width: 120px;">IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                            <tr data-target="shortcuts.row" data-id="{{ loop.index0 }}">
+                                <td class="text-nowrap small">
+                                    {{ log.createdAt|date('d/m/Y H:i:s') }}
+                                </td>
+                                <td>
+                                    <span class="badge {{ log.actionBadgeClass }} fw-medium">
+                                        {{ log.actionLabel }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if log.userIdentifier %}
+                                        <span class="fw-medium">{{ log.userIdentifier }}</span>
+                                    {% else %}
+                                        <span class="text-muted fst-italic">Système</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-nowrap small">
+                                    {% if log.entityLabel %}
+                                        <code class="bg-light px-1 py-0.5 rounded">{{ log.entityLabel }}</code>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.details %}
+                                        <details class="small">
+                                            <summary class="text-muted cursor-pointer">
+                                                <i class="bi bi-chevron-right me-1"></i> Voir détails
+                                            </summary>
+                                            <pre class="mt-1 p-2 bg-dark text-light small rounded overflow-auto" style="max-height: 150px;">{{ log.details|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                                        </details>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-nowrap small text-muted">
+                                    {{ log.ipAddress ?? '—' }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-2">Aucune entrée de journal trouvée.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit form on filter change for better UX (optional)
+    const filterForm = document.querySelector('form[method="get"]');
+    if (filterForm) {
+        const selects = filterForm.querySelectorAll('select');
+        selects.forEach(select => {
+            select.addEventListener('change', () => filterForm.submit());
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% block modals %}
+{# Modal Purge #}
+<div class="modal fade" id="modalPurge" tabindex="-1" aria-labelledby="modalPurgeLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning-subtle">
+                <h5 class="modal-title" id="modalPurgeLabel">
+                    <i class="bi bi-trash me-2 text-warning"></i> Purger le journal d'audit
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <form method="post" action="{{ path('app_integrite_purge') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('integrite_purge') }}">
+                <div class="modal-body">
+                    <p class="mb-3">Supprimer toutes les entrées de journal plus anciennes que <strong>X jours</strong>.</p>
+                    <div class="alert alert-warning small mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Cette action est <strong>irréversible</strong>. Les entrées purgées seront perdues définitivement.
+                    </div>
+                    <div class="mb-3">
+                        <label for="purgeDays" class="form-label fw-bold">Conserver les entrées des derniers :</label>
+                        <input type="number"
+                               id="purgeDays"
+                               name="days"
+                               class="form-control form-control-sm"
+                               value="90"
+                               min="1"
+                               max="3650"
+                               required>
+                        <div class="form-text">Valeur par défaut : 90 jours (3 mois)</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i> Purger maintenant
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

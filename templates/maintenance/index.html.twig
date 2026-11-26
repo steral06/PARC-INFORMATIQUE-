@@ -1,0 +1,492 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Maintenances & Pannes | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+{# En-tête avec les 2 actions rapides et l'assistant #}
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-3 gap-2 flex-shrink-0">
+    <div>
+        <h1 class="h3 fw-bold mb-1" style="color: #121212;">Maintenances & Pannes</h1>
+        <p class="text-muted mb-0 small">Dépannages express de l'équipe DSI et suivi des matériels confiés aux prestataires externes</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-outline-primary d-inline-flex align-items-center gap-2 shadow-sm" data-bs-toggle="offcanvas" data-bs-target="#assistantOffcanvas">
+            <i class="bi bi-robot text-primary fs-6"></i>
+            <span class="fw-semibold">Assistant Diagnostic</span>
+        </button>
+        <a href="{{ path('app_maintenance_new', {'type': 'dsi'}) }}" class="btn btn-success d-inline-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <span>+ Dépannage DSI</span>
+        </a>
+        <a href="{{ path('app_maintenance_new', {'type': 'prestataire'}) }}" class="btn btn-outline-dark d-inline-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-buildings"></i>
+            <span>+ Confier à Prestataire</span>
+        </a>
+    </div>
+</div>
+
+{# Cartes de statistiques #}
+<div class="row g-2 mb-3 flex-shrink-0">
+    <div class="col-6 col-md-3 col-xl">
+        <div class="card p-2 text-center border-0 shadow-sm h-100">
+            <span class="text-muted small">Total Incidents</span>
+            <span class="fs-4 fw-bold text-dark">{{ stats.total }}</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl">
+        <div class="card p-2 text-center border-0 shadow-sm h-100 border-start border-4 border-success">
+            <span class="text-muted small">⚡ Dépannages DSI</span>
+            <span class="fs-4 fw-bold text-success">{{ stats.dsi }}</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl">
+        <div class="card p-2 text-center border-0 shadow-sm h-100 border-start border-4 border-primary">
+            <span class="text-muted small">🏢 Prestataires Externes</span>
+            <span class="fs-4 fw-bold text-primary">{{ stats.prestataire }}</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl">
+        <div class="card p-2 text-center border-0 shadow-sm h-100 border-start border-4 border-danger">
+            <span class="text-muted small">⚠️ En cours d'intervention</span>
+            <span class="fs-4 fw-bold text-danger">{{ stats.open }}</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl">
+        <div class="card p-2 text-center border-0 shadow-sm h-100 border-start border-4 border-secondary">
+            <span class="text-muted small">✅ Clôturés / Résolus</span>
+            <span class="fs-4 fw-bold text-secondary">{{ stats.resolved }}</span>
+        </div>
+    </div>
+</div>
+
+{# Barre de Recherche & Filtres combinés #}
+<div class="card mb-3 flex-shrink-0">
+    <div class="card-body p-2 px-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-12 col-md-5">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" value="{{ current_search }}" class="form-control bg-light border-start-0" placeholder="Rechercher panne, équipement, prestataire, S/N..." data-shortcut="/">
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="all" {{ current_type == 'all' ? 'selected' : '' }}>-- Tous les types (DSI & Prestataires) --</option>
+                    <option value="dsi" {{ current_type == 'dsi' ? 'selected' : '' }}>⚡ Interne DSI uniquement</option>
+                    <option value="prestataire" {{ current_type == 'prestataire' ? 'selected' : '' }}>🏢 Prestataire externe uniquement</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <select name="statut" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="all" {{ current_statut == 'all' ? 'selected' : '' }}>-- Tous les statuts --</option>
+                    <option value="open" {{ current_statut == 'open' ? 'selected' : '' }}>⚠️ En cours d'intervention</option>
+                    <option value="resolved" {{ current_statut == 'resolved' ? 'selected' : '' }}>✅ Résolus & Remis en service</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-1 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-dark w-100">Filtrer</button>
+                {% if current_search is not empty or current_type != 'all' or current_statut != 'all' %}
+                    <a href="{{ path('app_maintenance_index') }}" class="btn btn-outline-secondary btn-sm" title="Réinitialiser les filtres">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+{# Tableau des Maintenances #}
+<div class="card flex-grow-1">
+    <div class="scroll-table-container">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small">
+                <tr>
+                    <th>Type</th>
+                    <th>Incident / Panne</th>
+                    <th>Équipement</th>
+                    <th>Prise en charge</th>
+                    <th>Priorité</th>
+                    <th>Statut</th>
+                    <th>Date</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets %}
+                    <tr data-shortcuts-target="row" data-action="click->shortcuts#pick">
+                        <td>
+                            {% if ticket.isPrestataire %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1">
+                                    <i class="bi bi-buildings"></i>
+                                    <span>Prestataire</span>
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1">
+                                    <i class="bi bi-lightning-charge-fill"></i>
+                                    <span>DSI</span>
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ ticket.titre }}</div>
+                            <small class="text-muted text-truncate d-inline-block" style="max-width: 280px;" title="{{ ticket.description }}">
+                                {{ ticket.description }}
+                            </small>
+                            {% if ticket.solution %}
+                                <div class="small text-success mt-1">
+                                    <i class="bi bi-check2-circle me-1"></i><strong>Solution :</strong> {{ ticket.solution|length > 80 ? (ticket.solution|slice(0, 80) ~ '...') : ticket.solution }}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ticket.equipement %}
+                                <a href="{{ path('app_equipement_show', {'id': ticket.equipement.id}) }}" class="text-dark fw-semibold text-decoration-none">
+                                    {{ ticket.equipement.nom }}
+                                </a>
+                                <div class="small text-muted font-monospace">{{ ticket.equipement.numeroSerie ?: ticket.equipement.tagInventaire ?: 'S/N inconnu' }}</div>
+                            {% else %}
+                                <span class="text-muted">Équipement non spécifié</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ticket.isPrestataire %}
+                                <div class="small fw-semibold text-primary">
+                                    <i class="bi bi-building me-1"></i>{{ ticket.prestataireNom ?: 'Prestataire non renseigné' }}
+                                </div>
+                                {% if ticket.numeroBon %}
+                                    <div class="small text-muted font-monospace">Réf: {{ ticket.numeroBon }}</div>
+                                {% endif %}
+                                {% if ticket.cout %}
+                                    <div class="small text-danger fw-bold font-monospace">{{ ticket.cout|number_format(0, ',', ' ') }} FCFA</div>
+                                {% endif %}
+                                {% if ticket.dateRetourPrevue %}
+                                    <div class="small text-muted">Retour : {{ ticket.dateRetourPrevue|date('d/m/Y') }}</div>
+                                {% endif %}
+                            {% else %}
+                                <div class="small fw-semibold text-dark">
+                                    <i class="bi bi-person-badge me-1"></i>{{ ticket.technicien ?: 'Équipe DSI' }}
+                                </div>
+                                <span class="badge bg-light text-muted border" style="font-size: 0.7rem;">Intervention interne</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ticket.priorite == 'Critique' %}
+                                <span class="badge bg-danger text-white">Critique</span>
+                            {% elseif ticket.priorite == 'Haute' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Haute</span>
+                            {% elseif ticket.priorite == 'Moyenne' %}
+                                <span class="badge bg-warning-subtle text-dark border">Moyenne</span>
+                            {% else %}
+                                <span class="badge bg-light text-secondary border">Basse</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ticket.statut == 'Résolu' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Résolu
+                                </span>
+                            {% elseif ticket.statut == 'En cours' %}
+                                <span class="badge bg-warning-subtle text-dark border">
+                                    <i class="bi bi-gear-wide-connected me-1"></i>En cours
+                                </span>
+                            {% elseif ticket.statut == 'Nouveau' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                    <i class="bi bi-exclamation-circle me-1"></i>Nouveau
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">{{ ticket.statut }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="small font-monospace">{{ ticket.dateCreation|date('d/m/Y') }}</span>
+                            {% if ticket.dateResolution %}
+                                <div class="small text-success font-monospace">Fin: {{ ticket.dateResolution|date('d/m/Y') }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex justify-content-end gap-1">
+                                {% if ticket.statut != 'Résolu' %}
+                                    <form method="post" action="{{ path('app_maintenance_resolve', {'id': ticket.id}) }}" onsubmit="return confirm('Marquer ce ticket comme résolu et remettre le matériel en service ?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('resolve' ~ ticket.id) }}">
+                                        <button type="submit" class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1" title="Clôturer le ticket">
+                                            <i class="bi bi-check2-circle"></i>
+                                            <span class="d-none d-xl-inline">Résoudre</span>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                <a href="{{ path('app_maintenance_edit', {'id': ticket.id}) }}" class="btn btn-outline-secondary btn-sm" title="Modifier" data-shortcut="m">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% set ticketWarning = '' %}
+                                {% if ticket.statut != 'Résolu' %}
+                                    {% set ticketWarning = '⚠️ Ce ticket est actuellement en cours (' ~ ticket.statut ~ '). Sa suppression va effacer l\'incident sans traçabilité de résolution pour le matériel !' %}
+                                {% endif %}
+                                <button type="button" 
+                                        class="btn btn-outline-danger btn-sm" 
+                                        title="Supprimer ce ticket"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#gtaDeleteModal"
+                                        data-delete-url="{{ path('app_maintenance_delete', {'id': ticket.id}) }}"
+                                        data-item-name="Ticket #{{ ticket.id }}: {{ ticket.titre }}"
+                                        data-token="{{ csrf_token('delete' ~ ticket.id) }}"
+                                        data-scandal-count="{{ ticketWarning ? 1 : 0 }}"
+                                        data-danger-warning="{{ ticketWarning }}"
+                                        data-shortcut="s">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5">
+                            <i class="bi bi-check2-all text-success fs-1 d-block mb-2"></i>
+                            <h6 class="fw-bold text-dark">Aucun ticket de maintenance correspondant</h6>
+                            <p class="text-muted small mb-3">Toutes les machines et matériels fonctionnent normalement.</p>
+                            <div class="d-flex justify-content-center gap-2">
+                                <a href="{{ path('app_maintenance_new', {'type': 'dsi'}) }}" class="btn btn-success btn-sm">
+                                    <i class="bi bi-lightning-charge-fill me-1"></i>+ Dépannage DSI
+                                </a>
+                                <a href="{{ path('app_maintenance_new', {'type': 'prestataire'}) }}" class="btn btn-outline-dark btn-sm">
+                                    <i class="bi bi-buildings me-1"></i>+ Confier à Prestataire
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{# Les modales et offcanvas sont placés dans le bloc "modals" au niveau racine du body pour éviter tout conflit de z-index #}
+{% block modals %}
+{# Tiroir Latéral Intelligent (Offcanvas) pour l'Assistant Diagnostic DSI #}
+<div class="offcanvas offcanvas-end border-0 shadow-lg" tabindex="-1" id="assistantOffcanvas" aria-labelledby="assistantOffcanvasLabel" style="width: 580px; max-width: 95vw;">
+    <div class="offcanvas-header bg-primary text-white py-3">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-robot fs-4"></i>
+            <div>
+                <h5 class="offcanvas-title fw-bold mb-0" id="assistantOffcanvasLabel">Assistant Diagnostic DSI</h5>
+                <small class="text-white-50">Dépannage express, base locale GTAC2A et recherche web technique</small>
+            </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Fermer"></button>
+    </div>
+    <div class="offcanvas-body p-4">
+        {# Pannes Fréquentes DSI en boutons rapides #}
+        <div class="mb-4">
+            <label class="form-label fw-bold small text-uppercase text-muted mb-2">
+                <i class="bi bi-lightning-charge text-warning me-1"></i>Pannes informatiques fréquentes :
+            </label>
+            <div class="d-flex flex-wrap gap-2">
+                {% for id, p in pannes_courantes %}
+                    <button type="button" class="btn btn-outline-secondary btn-sm quick-panne-btn d-flex align-items-center gap-1" data-panne-titre="{{ p.titre }}" onclick="window.lancerDiagnosticAssistant('{{ p.titre|e('js') }}')">
+                        <i class="bi {{ p.icone }} text-primary"></i>
+                        <span>{{ p.titre }}</span>
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <hr class="my-3">
+
+        {# Formulaire de diagnostic par question ou symptôme #}
+        <div class="mb-3">
+            <label for="assistant-input" class="form-label fw-bold">Décrivez les symptômes ou le problème technique :</label>
+            <div class="input-group">
+                <input type="text" id="assistant-input" class="form-control" placeholder="Ex: écran noir, bip 3 fois, disque 100%, imprimante hors ligne...">
+                <button type="button" id="assistant-submit-btn" class="btn btn-primary d-inline-flex align-items-center gap-1" onclick="window.lancerDiagnosticAssistant(document.getElementById('assistant-input').value)">
+                    <i class="bi bi-search"></i>
+                    <span>Diagnostiquer</span>
+                </button>
+            </div>
+            <div class="form-text small">Interroge instantanément la base locale GTAC2A et effectue une recherche web si besoin.</div>
+        </div>
+
+        {# Spinner de chargement #}
+        <div id="assistant-spinner" class="text-center py-4 d-none">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Recherche du diagnostic...</span>
+            </div>
+            <div class="small text-muted mt-2">Analyse des symptômes et recherche de la solution optimale...</div>
+        </div>
+
+        {# Zone de Résultat du Diagnostic #}
+        <div id="assistant-result" class="d-none mt-3">
+            <div class="card border-primary-subtle bg-light">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-primary me-2" id="res-source">Base DSI</span>
+                        <strong id="res-titre" class="text-dark">Diagnostic</strong>
+                    </div>
+                    <span class="badge bg-secondary" id="res-severite">Moyenne</span>
+                </div>
+                <div class="card-body">
+                    <h6 class="fw-bold text-danger mb-2"><i class="bi bi-question-circle me-1"></i>Causes probables :</h6>
+                    <ul id="res-causes" class="small mb-3 ps-3"></ul>
+
+                    <h6 class="fw-bold text-success mb-2"><i class="bi bi-check-circle me-1"></i>Procédure de résolution recommandée :</h6>
+                    <ol id="res-actions" class="small mb-3 ps-3"></ol>
+
+                    <div id="res-commande-box" class="d-none mb-3">
+                        <h6 class="fw-bold text-dark mb-1"><i class="bi bi-terminal me-1"></i>Commandes utiles (CMD / PowerShell Admin) :</h6>
+                        <pre id="res-commande" class="bg-dark text-light p-2 rounded small font-monospace mb-0 user-select-all"></pre>
+                    </div>
+
+                    <div class="p-2 bg-white rounded border">
+                        <small class="text-muted d-block fw-semibold mb-1">Solution prête pour le rapport du ticket :</small>
+                        <div id="res-solution" class="small text-dark font-monospace"></div>
+                    </div>
+                </div>
+                <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-copy-solution">
+                        <i class="bi bi-clipboard me-1"></i>Copier la solution
+                    </button>
+                    <a href="#" id="btn-create-with-solution" class="btn btn-success btn-sm d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-plus-circle me-1"></i>Créer le ticket DSI avec cette solution
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    let currentSolution = '';
+
+    window.lancerDiagnosticAssistant = function(texte) {
+        const input = document.getElementById('assistant-input');
+        const spinner = document.getElementById('assistant-spinner');
+        const resultBox = document.getElementById('assistant-result');
+        const resSource = document.getElementById('res-source');
+        const resTitre = document.getElementById('res-titre');
+        const resSeverite = document.getElementById('res-severite');
+        const resCauses = document.getElementById('res-causes');
+        const resActions = document.getElementById('res-actions');
+        const resCommandeBox = document.getElementById('res-commande-box');
+        const resCommande = document.getElementById('res-commande');
+        const resSolution = document.getElementById('res-solution');
+        const btnCreate = document.getElementById('btn-create-with-solution');
+
+        if (!texte) {
+            if (input) texte = input.value;
+        }
+        if (!texte || !texte.trim()) {
+            alert('Veuillez décrire le problème ou cliquer sur une panne fréquente.');
+            if (input) input.focus();
+            return;
+        }
+
+        if (input) input.value = texte;
+        if (spinner) spinner.classList.remove('d-none');
+        if (resultBox) resultBox.classList.add('d-none');
+
+        fetch("{{ path('app_maintenance_assistant') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ question: texte })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (spinner) spinner.classList.add('d-none');
+            if (data.success && data.diagnostic) {
+                const diag = data.diagnostic;
+                currentSolution = diag.solution_recommandee || '';
+
+                if (resSource) resSource.textContent = diag.source || 'Base DSI';
+                if (resTitre) resTitre.textContent = diag.titre || texte;
+                if (resSeverite) resSeverite.textContent = diag.severite || 'Moyenne';
+
+                // Causes
+                if (resCauses) {
+                    resCauses.innerHTML = '';
+                    (diag.causes || []).forEach(c => {
+                        const li = document.createElement('li');
+                        li.textContent = c;
+                        resCauses.appendChild(li);
+                    });
+                }
+
+                // Actions
+                if (resActions) {
+                    resActions.innerHTML = '';
+                    (diag.actions || []).forEach(a => {
+                        const li = document.createElement('li');
+                        li.textContent = a;
+                        resActions.appendChild(li);
+                    });
+                }
+
+                // Commande
+                if (resCommandeBox && resCommande) {
+                    if (diag.commande) {
+                        resCommande.textContent = diag.commande;
+                        resCommandeBox.classList.remove('d-none');
+                    } else {
+                        resCommandeBox.classList.add('d-none');
+                    }
+                }
+
+                // Solution
+                if (resSolution) resSolution.textContent = currentSolution;
+
+                // Lien création de ticket pré-rempli
+                if (btnCreate) {
+                    const newUrl = new URL("{{ path('app_maintenance_new') }}", window.location.origin);
+                    newUrl.searchParams.set('type', 'dsi');
+                    btnCreate.href = newUrl.toString();
+                }
+
+                if (resultBox) resultBox.classList.remove('d-none');
+            } else {
+                alert(data.message || 'Erreur lors du diagnostic.');
+            }
+        })
+        .catch(err => {
+            if (spinner) spinner.classList.add('d-none');
+            console.error('Erreur assistant diagnostic:', err);
+            alert('Impossible de contacter le service de diagnostic.');
+        });
+    };
+
+    function initAssistantListeners() {
+        const input = document.getElementById('assistant-input');
+        if (input && !input.dataset.listenerAttached) {
+            input.dataset.listenerAttached = 'true';
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    window.lancerDiagnosticAssistant(input.value);
+                }
+            });
+        }
+
+        const btnCopy = document.getElementById('btn-copy-solution');
+        if (btnCopy && !btnCopy.dataset.listenerAttached) {
+            btnCopy.dataset.listenerAttached = 'true';
+            btnCopy.addEventListener('click', function() {
+                if (currentSolution) {
+                    navigator.clipboard.writeText(currentSolution).then(() => {
+                        const prev = btnCopy.innerHTML;
+                        btnCopy.innerHTML = '<i class="bi bi-check2 text-success me-1"></i>Copié !';
+                        setTimeout(() => { btnCopy.innerHTML = prev; }, 2000);
+                    });
+                }
+            });
+        }
+    }
+
+    document.addEventListener('turbo:load', initAssistantListeners);
+    document.addEventListener('DOMContentLoaded', initAssistantListeners);
+    if (document.readyState !== 'loading') {
+        initAssistantListeners();
+    }
+})();
+</script>
+{% endblock %}

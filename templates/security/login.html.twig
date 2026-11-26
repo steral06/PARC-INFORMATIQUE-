@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr" data-turbo="false">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="turbo-cache-control" content="no-cache">
+        <meta name="turbo-visit-control" content="reload">
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
+        <title>Connexion | GTAC2A-IARDT</title>
+        <link rel="icon" type="image/png" href="{{ asset('images/logo-gta.png') }}">
+        
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+        {% block stylesheets %}
+        {% endblock %}
+
+        {% block javascripts %}
+            {% block importmap %}{{ importmap('app') }}{% endblock %}
+        {% endblock %}
+
+        <style>
+            :root {
+                --gta-orange: #E47000;
+                --gta-orange-hover: #CC6400;
+            }
+            body {
+                background: #121212;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1.5rem;
+                margin: 0;
+                font-family: system-ui, -apple-system, sans-serif;
+            }
+            .login-card {
+                background: #ffffff;
+                border-radius: 1rem;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+                width: 100%;
+                max-width: 400px;
+                overflow: hidden;
+                border: 2px solid var(--gta-orange);
+            }
+            .login-header {
+                background: #ffffff;
+                padding: 2rem 2rem 1.25rem;
+                text-align: center;
+            }
+            .login-body {
+                padding: 1.5rem 2rem 2rem;
+            }
+            .btn-gta {
+                background-color: var(--gta-orange);
+                border-color: var(--gta-orange);
+                color: #ffffff;
+                font-weight: 600;
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                transition: all 0.2s ease-in-out;
+            }
+            .btn-gta:hover, .btn-gta:focus {
+                background-color: var(--gta-orange-hover);
+                border-color: var(--gta-orange-hover);
+                color: #ffffff;
+                box-shadow: 0 4px 14px rgba(228, 112, 0, 0.4);
+            }
+            .form-control {
+                border-radius: 0.5rem;
+                padding: 0.65rem 0.75rem;
+            }
+            .form-control:focus {
+                border-color: var(--gta-orange);
+                box-shadow: 0 0 0 0.25rem rgba(228, 112, 0, 0.25);
+            }
+        </style>
+    </head>
+    <body data-turbo="false">
+        <div data-shortcuts-disabled hidden></div>
+        <div class="login-card">
+            <div class="login-header">
+                <img src="{{ asset('images/logo-gta.png') }}" alt="GTAC2A-IARDT" style="max-height: 80px; width: auto; max-width: 100%; object-fit: contain;">
+            </div>
+
+            <div class="login-body">
+                {% if error %}
+                    <div class="alert alert-danger alert-dismissible fade show p-2 small mb-3" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        {{ error.messageKey|trans(error.messageData, 'security') }}
+                        <button type="button" class="btn-close btn-close-white small" data-bs-dismiss="alert" aria-label="Fermer"></button>
+                    </div>
+                {% endif %}
+
+                {% for message in app.flashes('error') %}
+                    <div class="alert alert-danger alert-dismissible fade show p-2 small mb-3" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close btn-close-white small" data-bs-dismiss="alert" aria-label="Fermer"></button>
+                    </div>
+                {% endfor %}
+
+                <form method="post" action="{{ path('app_login') }}" data-turbo="false" autocomplete="off">
+                    <div class="mb-3">
+                        <label for="username" class="form-label small fw-semibold text-dark">Identifiant</label>
+                        <input type="text" value="{{ last_username }}" name="_username" id="username" class="form-control" autocomplete="username" required autofocus placeholder="Votre identifiant">
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="password" class="form-label small fw-semibold text-dark">Mot de passe</label>
+                        <input type="password" name="_password" id="password" class="form-control" autocomplete="current-password" value="" required placeholder="Votre mot de passe">
+                    </div>
+
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+                    <button class="btn btn-gta w-100 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm" type="submit">
+                        <span>Se connecter</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </button>
+                </form>
+
+                {# ── Connexion par empreinte biométrique (temporairement masquée en attente) ──
+                <div id="webauthn-section"
+                     data-controller="webauthn"
+                     data-webauthn-login-options-url-value="{{ path('app_webauthn_login_options') }}"
+                     data-webauthn-login-verify-url-value="{{ path('app_webauthn_login_verify') }}">
+                    <div id="webauthn-login-btn" class="d-none mt-3">
+                        <div class="d-flex align-items-center gap-2 my-2">
+                            <hr class="flex-grow-1" style="border-color: #e5e7eb;">
+                            <span class="text-muted small">ou</span>
+                            <hr class="flex-grow-1" style="border-color: #e5e7eb;">
+                        </div>
+                        <button type="button"
+                                class="btn w-100 d-flex align-items-center justify-content-center gap-2 fw-semibold shadow-sm"
+                                style="background: #1e1e1e; color: #fff; border-radius: 0.5rem; padding: 0.65rem;"
+                                data-action="click->webauthn#loginWithBiometric">
+                            <i class="bi bi-fingerprint text-warning" style="font-size: 1.2rem;"></i>
+                            <span>Connexion par empreinte digitale</span>
+                        </button>
+                        <div data-webauthn-target="status" style="display:none; font-size: 0.82rem; margin-top: 0.5rem; text-align: center; font-weight: 500;"></div>
+                    </div>
+                </div>
+                ── Fin connexion biométrique ── #}
+            </div>
+        </div>
+
+        <script>
+            // Prévient tout gel ou état fantôme de cache navigateur sur le mot de passe
+            function prepareInputs() {
+                const pwd = document.getElementById('password');
+                const user = document.getElementById('username');
+                if (pwd) {
+                    pwd.disabled = false;
+                    pwd.readOnly = false;
+                    pwd.value = '';
+                }
+                if (user && user.value && pwd) {
+                    setTimeout(() => pwd.focus(), 60);
+                }
+            }
+            document.addEventListener('DOMContentLoaded', prepareInputs);
+            window.addEventListener('pageshow', prepareInputs);
+
+            // Gestion de l'affichage du bouton biométrique (affiché seulement si l'utilisateur a une empreinte)
+            document.addEventListener('DOMContentLoaded', function () {
+                const usernameInput = document.getElementById('username');
+                const btnContainer  = document.getElementById('webauthn-login-btn');
+                const section       = document.getElementById('webauthn-section');
+                if (!usernameInput || !btnContainer || !section) return;
+
+                const optionsUrl = section.dataset.webauthnLoginOptionsUrlValue;
+                if (!optionsUrl) return;
+
+                function checkBiometric() {
+                    const username = usernameInput.value.trim();
+                    if (!username) {
+                        btnContainer.classList.add('d-none');
+                        return;
+                    }
+
+                    fetch(optionsUrl + '?username=' + encodeURIComponent(username))
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.available) {
+                                btnContainer.classList.remove('d-none');
+                            } else {
+                                btnContainer.classList.add('d-none');
+                            }
+                        })
+                        .catch(() => {
+                            btnContainer.classList.add('d-none');
+                        });
+                }
+
+                // Vérification au chargement si un nom d'utilisateur est déjà présent
+                if (usernameInput.value.trim()) {
+                    checkBiometric();
+                }
+
+                // Vérification lors de la frappe ou du changement/blur
+                let timeout = null;
+                usernameInput.addEventListener('input', function () {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(checkBiometric, 300);
+                });
+                usernameInput.addEventListener('blur', checkBiometric);
+                usernameInput.addEventListener('change', checkBiometric);
+            });
+        </script>
+    </body>
+</html>

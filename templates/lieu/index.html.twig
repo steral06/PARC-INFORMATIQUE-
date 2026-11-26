@@ -1,0 +1,99 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Lieux & Salles | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-2 flex-shrink-0">
+    <div>
+        <h1 class="h3 fw-bold mb-1" style="color: #121212;">Lieux & Salles</h1>
+        <p class="text-muted mb-0 small">Cartographie des implantations physiques, agences et bureaux GTAC2A-IARDT</p>
+    </div>
+    <a href="{{ path('app_lieu_new') }}" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm" data-shortcut="n" title="Raccourci : N">
+        <i class="bi bi-plus-lg"></i>
+        <span>Nouvel Emplacement</span>
+    </a>
+</div>
+
+{# Barre de Recherche #}
+<div class="card mb-3 flex-shrink-0">
+    <div class="card-body p-2 px-3">
+        <form method="get" class="d-flex align-items-center gap-2">
+            <div class="input-group input-group-sm flex-grow-1">
+                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                <input type="text" name="q" value="{{ current_search }}" class="form-control bg-light border-start-0" placeholder="Rechercher un lieu, une salle, un bureau..." data-shortcut="/">
+            </div>
+            {% if current_search is not empty %}
+                <a href="{{ path('app_lieu_index') }}" class="btn btn-outline-secondary btn-sm" title="Effacer la recherche">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="scroll-table-container flex-grow-1 p-1">
+    <div class="row g-3">
+        {% for lieu in lieux %}
+            <div class="col-12 col-md-6 col-lg-4" data-shortcuts-target="row" data-action="click->shortcuts#pick">
+                <div class="card h-100 shadow-sm border" style="border-top: 3px solid var(--gta-black) !important;">
+                    <div class="card-body p-4 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="fw-bold mb-0 text-dark">{{ lieu.nomLieu }}</h5>
+                                <span class="badge bg-dark text-white fs-6 shadow-sm">
+                                    {{ counts[lieu.id] ?? 0 }} actif(s)
+                                </span>
+                            </div>
+                            <p class="text-muted small mb-3">
+                                <i class="bi bi-geo-alt text-primary me-1"></i>
+                                {{ lieu.description ?: 'Aucune précision géographique enregistrée.' }}
+                            </p>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top mt-2">
+                            <a href="{{ path('app_equipement_index', {'lieu': lieu.id}) }}" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1">
+                                <i class="bi bi-box-seam"></i>
+                                <span>Voir le parc</span>
+                            </a>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ path('app_lieu_edit', {'id': lieu.id}) }}" class="btn btn-outline-secondary" title="Modifier" data-shortcut="m">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% set lieuCount = counts[lieu.id] ?? 0 %}
+                                {% set lieuWarning = '' %}
+                                {% if lieuCount > 0 %}
+                                    {% set lieuWarning = '⚠️ Cet emplacement héberge actuellement <strong>' ~ lieuCount ~ ' équipement(s)</strong>. Sa suppression laissera ces équipements sans localisation physique enregistrée !' %}
+                                {% endif %}
+                                <button type="button" 
+                                        class="btn btn-outline-danger" 
+                                        title="Supprimer ce lieu"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#gtaDeleteModal"
+                                        data-delete-url="{{ path('app_lieu_delete', {'id': lieu.id}) }}"
+                                        data-item-name="Lieu: {{ lieu.nomLieu }}"
+                                        data-token="{{ csrf_token('delete' ~ lieu.id) }}"
+                                        data-scandal-count="{{ lieuCount }}"
+                                        data-danger-warning="{{ lieuWarning }}"
+                                        data-shortcut="s">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="col-12">
+                <div class="card p-5 text-center">
+                    <i class="bi bi-geo-alt text-muted fs-1 mb-2"></i>
+                    <h5 class="fw-bold text-dark">Aucun emplacement configuré</h5>
+                    <p class="text-muted small mb-3">Ajoutez vos bâtiments, étages, agences ou salles serveurs.</p>
+                    <div>
+                        <a href="{{ path('app_lieu_new') }}" class="btn btn-primary btn-sm">Ajouter un lieu</a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

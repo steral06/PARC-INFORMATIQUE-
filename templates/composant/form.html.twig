@@ -1,0 +1,205 @@
+{% extends 'base.html.twig' %}
+
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+
+{% block title %}{{ title }} | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+<div class="mb-3 flex-shrink-0">
+    <a href="{{ path('app_composant_index') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 mb-2">
+        <i class="bi bi-arrow-left"></i>
+        <span>Retour à la liste</span>
+    </a>
+    <h1 class="h3 fw-bold mb-0" style="color: #121212;">{{ title }}</h1>
+</div>
+
+{{ form_start(form) }}
+
+{# ── ÉTAPE 1 : Catégorie ─────────────────────────────────────────── #}
+<div class="card mb-3">
+    <div class="card-header fw-semibold py-2 px-3 d-flex align-items-center gap-2">
+        <span class="badge bg-primary rounded-circle" style="width:22px;height:22px;line-height:22px;font-size:.75rem;">1</span>
+        Catégorie du composant
+    </div>
+    <div class="card-body p-3">
+        <div class="row g-2 justify-content-start">
+            {% set categories = {
+                'Mémoire RAM':       { icon: 'bi-memory',          label: 'RAM' },
+                'Disque SSD/HDD':    { icon: 'bi-device-hdd',      label: 'Disque' },
+                'Processeur':        { icon: 'bi-cpu',              label: 'CPU' },
+                'Carte graphique':   { icon: 'bi-gpu-card',         label: 'GPU' },
+                'Alimentation':      { icon: 'bi-plug',             label: 'Alim.' },
+                'Toner/Consommable': { icon: 'bi-droplet',          label: 'Toner' },
+                'Réseau':            { icon: 'bi-router',           label: 'Réseau' },
+                'Périphérique':      { icon: 'bi-keyboard',         label: 'Périph.' },
+                'Autre':             { icon: 'bi-box',              label: 'Autre' },
+            } %}
+            {% for value, meta in categories %}
+            <div class="col-auto">
+                <input type="radio" class="btn-check" name="{{ form.type.vars.full_name }}"
+                       id="cat_{{ loop.index }}" value="{{ value }}"
+                       {{ form.type.vars.data == value ? 'checked' : '' }}
+                       autocomplete="off">
+                <label class="btn btn-outline-secondary btn-sm d-flex flex-column align-items-center gap-1 px-3 py-2 cat-btn" for="cat_{{ loop.index }}" style="min-width:72px;">
+                    <i class="bi {{ meta.icon }} fs-5"></i>
+                    <span style="font-size:.7rem;">{{ meta.label }}</span>
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        {{ form_errors(form.type) }}
+        {# Champ hidden conservé pour Symfony — on le synchronise via JS #}
+        <div style="display:none;">{{ form_widget(form.type) }}</div>
+    </div>
+</div>
+
+{# ── ÉTAPE 2 : Détails (masqués jusqu'à sélection catégorie) ────── #}
+<div id="composant-details" style="display:none;">
+    <div class="card mb-3">
+        <div class="card-header fw-semibold py-2 px-3 d-flex align-items-center gap-2">
+            <span class="badge bg-primary rounded-circle" style="width:22px;height:22px;line-height:22px;font-size:.75rem;">2</span>
+            <span id="details-title">Caractéristiques</span>
+        </div>
+        <div class="card-body p-3">
+
+            {# Champs techniques contextuels #}
+            <div class="row g-3 mb-3">
+                <div class="col-12 col-sm-6" id="field-marque">
+                    {{ form_label(form.marque) }}
+                    {{ form_widget(form.marque) }}
+                    {{ form_errors(form.marque) }}
+                </div>
+                <div class="col-12 col-sm-6" id="field-modele">
+                    {{ form_label(form.modele) }}
+                    {{ form_widget(form.modele) }}
+                    {{ form_errors(form.modele) }}
+                </div>
+                <div class="col-12 col-sm-6" id="field-capacite">
+                    {{ form_label(form.capacite) }}
+                    {{ form_widget(form.capacite) }}
+                    {{ form_errors(form.capacite) }}
+                </div>
+                <div class="col-12 col-sm-6" id="field-frequence">
+                    {{ form_label(form.frequence) }}
+                    {{ form_widget(form.frequence) }}
+                    {{ form_errors(form.frequence) }}
+                </div>
+                <div class="col-12" id="field-nom">
+                    {{ form_label(form.nom) }}
+                    {{ form_widget(form.nom) }}
+                    {{ form_errors(form.nom) }}
+                </div>
+            </div>
+
+            <hr class="my-2">
+
+            {# Inventaire + Affectation en une seule ligne compacte #}
+            <div class="row g-3">
+                <div class="col-6 col-sm-4 col-md-2">
+                    {{ form_label(form.quantite) }}
+                    {{ form_widget(form.quantite) }}
+                    {{ form_errors(form.quantite) }}
+                </div>
+                <div class="col-6 col-sm-4 col-md-3">
+                    {{ form_label(form.statut) }}
+                    {{ form_widget(form.statut) }}
+                    {{ form_errors(form.statut) }}
+                </div>
+                <div class="col-12 col-sm-4 col-md-3">
+                    {{ form_label(form.numeroSerie) }}
+                    {{ form_widget(form.numeroSerie) }}
+                    {{ form_errors(form.numeroSerie) }}
+                </div>
+                <div class="col-12 col-md-4">
+                    {{ form_label(form.dateAcquisition) }}
+                    {{ form_widget(form.dateAcquisition) }}
+                    {{ form_errors(form.dateAcquisition) }}
+                </div>
+                <div class="col-12 col-md-6">
+                    {{ form_label(form.equipement) }}
+                    {{ form_widget(form.equipement) }}
+                    {{ form_errors(form.equipement) }}
+                </div>
+                <div class="col-12 col-md-6">
+                    {{ form_label(form.lieu) }}
+                    {{ form_widget(form.lieu) }}
+                    {{ form_errors(form.lieu) }}
+                </div>
+                <div class="col-12">
+                    {{ form_label(form.notes) }}
+                    {{ form_widget(form.notes) }}
+                    {{ form_errors(form.notes) }}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center pt-3 mt-2 border-top">
+                <a href="{{ path('app_composant_index') }}" class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-x-lg me-1"></i> Annuler
+                </a>
+                <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 shadow" data-shortcut="v">
+                    <i class="bi bi-check2-circle fs-5"></i>
+                    <span>{{ button_label }}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ form_end(form) }}
+
+<style>
+.cat-btn { transition: background .15s, color .15s; }
+.btn-check:checked + .cat-btn {
+    background: #0d6efd;
+    color: #fff;
+    border-color: #0d6efd;
+}
+</style>
+
+<script>
+(function () {
+    const RULES = {
+        'Mémoire RAM':       { marque: true,  modele: true,  capacite: true,  frequence: true,  nom: false },
+        'Disque SSD/HDD':    { marque: true,  modele: true,  capacite: true,  frequence: false, nom: false },
+        'Processeur':        { marque: true,  modele: true,  capacite: false, frequence: true,  nom: false },
+        'Carte graphique':   { marque: true,  modele: true,  capacite: true,  frequence: false, nom: false },
+        'Alimentation':      { marque: true,  modele: true,  capacite: true,  frequence: false, nom: false },
+        'Toner/Consommable': { marque: true,  modele: true,  capacite: false, frequence: false, nom: true  },
+        'Réseau':            { marque: true,  modele: true,  capacite: false, frequence: false, nom: true  },
+        'Périphérique':      { marque: true,  modele: true,  capacite: false, frequence: false, nom: true  },
+        'Autre':             { marque: false, modele: false, capacite: false, frequence: false, nom: true  },
+    };
+
+    const FIELDS = ['marque', 'modele', 'capacite', 'frequence', 'nom'];
+
+    function applyRules(type) {
+        const rule = RULES[type] ?? { marque: false, modele: false, capacite: false, frequence: false, nom: true };
+        FIELDS.forEach(function (f) {
+            const el = document.getElementById('field-' + f);
+            if (el) el.style.display = rule[f] ? '' : 'none';
+        });
+        const title = document.getElementById('details-title');
+        if (title) title.textContent = 'Détails — ' + type;
+        document.getElementById('composant-details').style.display = '';
+    }
+
+    // Synchroniser les boutons radio avec le <select> Symfony caché
+    const hiddenSelect = document.getElementById('composant_type_field');
+    const radios = document.querySelectorAll('input.btn-check[id^="cat_"]');
+
+    radios.forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            if (hiddenSelect) hiddenSelect.value = this.value;
+            applyRules(this.value);
+        });
+    });
+
+    // Au chargement (mode édition : catégorie déjà choisie)
+    const checkedRadio = document.querySelector('input.btn-check[id^="cat_"]:checked');
+    if (checkedRadio) {
+        if (hiddenSelect) hiddenSelect.value = checkedRadio.value;
+        applyRules(checkedRadio.value);
+    }
+})();
+</script>
+{% endblock %}

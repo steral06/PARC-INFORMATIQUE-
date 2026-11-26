@@ -1,0 +1,110 @@
+{% if preparations|length > 0 %}
+<div class="card border-0 shadow-sm rounded-4 mt-4">
+    <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-clipboard2-check-fill text-primary"></i>
+            <span class="fw-bold text-dark">Historique des préparations &amp; vérifications</span>
+            <span class="badge bg-secondary-subtle text-secondary border">{{ preparations|length }}</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Date de début</th>
+                        <th>Type</th>
+                        <th>Technicien</th>
+                        <th>Progression</th>
+                        <th>Statut</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for prep in preparations %}
+                    <tr>
+                        <td class="ps-4 text-muted">
+                            <div class="fw-semibold text-dark">{{ prep.dateDebut|date('d/m/Y à H:i') }}</div>
+                            {% if prep.dateFin %}
+                                <div style="font-size: .7rem;" class="text-muted">Fin : {{ prep.dateFin|date('d/m/Y à H:i') }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if prep.type == 'service' %}
+                                <span class="badge rounded-pill" style="background:#fff3e0;color:#E47000;border:1px solid #E47000;">
+                                    <i class="bi bi-hdd-stack me-1"></i>En service
+                                </span>
+                            {% else %}
+                                <span class="badge rounded-pill bg-secondary-subtle text-secondary border">
+                                    <i class="bi bi-box-seam me-1"></i>En stock
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="font-monospace text-dark">
+                                {{ prep.technicien ? prep.technicien.username : '—' }}
+                            </span>
+                        </td>
+                        <td style="min-width:130px;">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-grow-1" style="height:6px;border-radius:4px;">
+                                    <div class="progress-bar
+                                        {% if prep.tauxProgression == 100 and prep.nbEtapesKo == 0 %}bg-success
+                                        {% elseif prep.nbEtapesKo > 0 %}bg-warning
+                                        {% else %}bg-primary{% endif %}"
+                                         style="width:{{ prep.tauxProgression }}%"></div>
+                                </div>
+                                <small class="text-muted flex-shrink-0">{{ prep.tauxProgression }}%</small>
+                            </div>
+                            <small class="text-muted">{{ prep.nbEtapesOk }} OK{% if prep.nbEtapesKo > 0 %}, {{ prep.nbEtapesKo }} KO{% endif %} / {{ prep.nbEtapesTotal }}</small>
+                        </td>
+                        <td>
+                            {% if prep.statut == 'terminee' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Terminée
+                                </span>
+                            {% elseif prep.statut == 'en_cours' %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                    <i class="bi bi-hourglass-split me-1"></i>En cours
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border">
+                                    <i class="bi bi-slash-circle me-1"></i>Abandonnée
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="d-inline-flex align-items-center gap-1">
+                                {# Bouton Consulter / Reprendre #}
+                                <button type="button"
+                                        class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalChecklist"
+                                        onclick="window.ouvrirChecklistExistante({{ prep.id }}, {{ equipement.id }})"
+                                        title="Ouvrir le suivi de cette préparation">
+                                    <i class="bi bi-eye"></i>
+                                    <span>{% if prep.statut == 'en_cours' %}Reprendre{% else %}Consulter{% endif %}</span>
+                                </button>
+
+                                {# Bouton Supprimer (formulaire direct avec CSRF) #}
+                                <form method="post"
+                                      action="{{ path('app_checklist_supprimer', {'id': equipement.id, 'preparationId': prep.id}) }}"
+                                      onsubmit="return confirm('Supprimer définitivement cette session de préparation de l\'historique ?');"
+                                      class="d-inline">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('checklist_supprimer_' ~ prep.id) }}">
+                                    <button type="submit"
+                                            class="btn btn-outline-danger btn-sm p-1 px-2"
+                                            title="Supprimer cette session de l'historique">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}

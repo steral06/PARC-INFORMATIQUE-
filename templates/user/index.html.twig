@@ -1,0 +1,240 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Comptes Utilisateurs | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-2 flex-shrink-0">
+    <div>
+        <h1 class="h3 fw-bold mb-1" style="color: #121212;">Comptes Utilisateurs</h1>
+        <p class="text-muted mb-0 small">Gestion des accès, rôles de sécurité, codes PIN 2FA et expiration mensuelle des mots de passe</p>
+    </div>
+    {% if is_granted('ROLE_SUPER_ADMIN') %}
+        <a href="{{ path('app_user_new') }}" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm" data-shortcut="n" title="Raccourci : N">
+            <i class="bi bi-person-plus-fill"></i>
+            <span>Nouvel Utilisateur</span>
+        </a>
+    {% endif %}
+</div>
+
+{# Barre de Recherche #}
+<div class="card mb-3 flex-shrink-0">
+    <div class="card-body p-2 px-3">
+        <form method="get" class="d-flex align-items-center gap-2">
+            <div class="input-group input-group-sm flex-grow-1">
+                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                <input type="text" name="q" value="{{ current_search }}" class="form-control bg-light border-start-0" placeholder="Rechercher un utilisateur par identifiant..." data-shortcut="/">
+            </div>
+            {% if current_search is not empty %}
+                <a href="{{ path('app_user_index') }}" class="btn btn-outline-secondary btn-sm" title="Effacer la recherche">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card flex-grow-1">
+    <div class="scroll-table-container">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small">
+                <tr>
+                    <th>Identifiant</th>
+                    <th>Rôle &amp; Privilèges</th>
+                    <th>Sécurité 2FA (PIN)</th>
+                    <th>Renouvellement Mot de Passe</th>
+                    <th>Statut</th>
+                    {% if is_granted('ROLE_SUPER_ADMIN') %}
+                        <th class="text-center">Actions Admin</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                    <tr data-shortcuts-target="row" data-action="click->shortcuts#pick">
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center fw-bold" style="width: 34px; height: 34px; font-size: 0.85rem;">
+                                    {{ u.username|slice(0, 1)|upper }}
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark">{{ u.username }}</div>
+                                    <small class="text-muted font-monospace" style="font-size: 0.75rem;">Compte GTA Parc</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if 'ROLE_SUPER_ADMIN' in u.roles %}
+                                <span class="badge bg-warning-subtle text-dark border border-warning">
+                                    <i class="bi bi-shield-shaded me-1"></i>SUPER_ADMIN
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-secondary border">
+                                    <i class="bi bi-person me-1"></i>Utilisateur Standard
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border font-monospace">
+                                <i class="bi bi-lock-fill me-1 text-primary"></i>Actif (4 chiffres)
+                            </span>
+                        </td>
+                        <td>
+                            {% if u.isPasswordExpired %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>Expiré (&gt; 30 jours)
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-check-circle me-1"></i>Expire dans {{ u.daysUntilPasswordExpiration }} jour(s)
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-success text-white">Actif</span>
+                        </td>
+                        {% if is_granted('ROLE_SUPER_ADMIN') %}
+                            <td class="text-center">
+                                {% if u.userIdentifier != app.user.userIdentifier %}
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        {# Bouton Reset MDP #}
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1"
+                                                title="Réinitialiser le mot de passe"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalResetPassword{{ u.id }}">
+                                            <i class="bi bi-key-fill"></i>
+                                            <span class="d-none d-lg-inline">MDP</span>
+                                        </button>
+
+                                        {# Bouton Reset PIN #}
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
+                                                title="Réinitialiser le code PIN 2FA à 1234"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalResetPin{{ u.id }}">
+                                            <i class="bi bi-shield-x"></i>
+                                            <span class="d-none d-lg-inline">PIN</span>
+                                        </button>
+
+                                        {# Bouton Supprimer #}
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1"
+                                                title="Supprimer cet utilisateur"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#gtaDeleteModal"
+                                                data-delete-url="{{ path('app_user_delete', {id: u.id}) }}"
+                                                data-item-name="Utilisateur: {{ u.username }}"
+                                                data-token="{{ csrf_token('delete_' ~ u.id) }}"
+                                                data-shortcut="s">
+                                            <i class="bi bi-trash"></i>
+                                            <span class="d-none d-lg-inline">Supprimer</span>
+                                        </button>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted small fst-italic">Vous-même</span>
+                                {% endif %}
+                            </td>
+                        {% endif %}
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="{{ is_granted('ROLE_SUPER_ADMIN') ? 6 : 5 }}" class="text-center py-4 text-muted">Aucun utilisateur trouvé.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+    {% if is_granted('ROLE_SUPER_ADMIN') %}
+        {% for u in users %}
+            {% if u.userIdentifier != app.user.userIdentifier %}
+
+                {# ===== Modale Reset Mot de Passe ===== #}
+                <div class="modal fade" id="modalResetPassword{{ u.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" style="max-width: 460px;">
+                        <div class="modal-content border-0 shadow-lg">
+                            <div class="modal-header border-0 pb-1 px-4 pt-4">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                         style="width: 44px; height: 44px; background: #FEF3C7; color: #D97706;">
+                                        <i class="bi bi-key-fill fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="modal-title fw-bold mb-0">Réinitialiser le mot de passe</h5>
+                                        <p class="text-muted small mb-0">Compte : <strong>{{ u.username }}</strong></p>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body px-4 py-3">
+                                <div class="alert alert-warning border-warning d-flex align-items-start gap-2 py-2 mb-0" style="font-size: 0.85rem;">
+                                    <i class="bi bi-exclamation-triangle-fill mt-1 flex-shrink-0"></i>
+                                    <div>
+                                        Un <strong>mot de passe temporaire</strong> sera généré automatiquement au format <code>GTA-XXXX-XXXX</code>.
+                                        L'utilisateur devra le changer dès sa <strong>prochaine connexion</strong>.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer border-0 px-4 pb-4 pt-1 d-flex gap-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">
+                                    <i class="bi bi-x-lg me-1"></i>Annuler
+                                </button>
+                                <form method="post" action="{{ path('app_user_reset_password', {id: u.id}) }}" class="d-inline">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('reset_password_' ~ u.id) }}">
+                                    <button type="submit" class="btn btn-warning btn-sm fw-bold px-3">
+                                        <i class="bi bi-key-fill me-1"></i>Générer un MDP temporaire
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# ===== Modale Reset PIN 2FA ===== #}
+                <div class="modal fade" id="modalResetPin{{ u.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" style="max-width: 460px;">
+                        <div class="modal-content border-0 shadow-lg">
+                            <div class="modal-header border-0 pb-1 px-4 pt-4">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                         style="width: 44px; height: 44px; background: #F3F4F6; color: #4B5563;">
+                                        <i class="bi bi-shield-x fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="modal-title fw-bold mb-0">Réinitialiser le code PIN 2FA</h5>
+                                        <p class="text-muted small mb-0">Compte : <strong>{{ u.username }}</strong></p>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body px-4 py-3">
+                                <div class="alert alert-info border-info d-flex align-items-start gap-2 py-2 mb-0" style="font-size: 0.85rem;">
+                                    <i class="bi bi-info-circle-fill mt-1 flex-shrink-0"></i>
+                                    <div>
+                                        Le code PIN sera remis à <strong class="font-monospace">1234</strong> (valeur par défaut).
+                                        Demandez à l'utilisateur de le modifier depuis <strong>son profil</strong> dès que possible.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer border-0 px-4 pb-4 pt-1 d-flex gap-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">
+                                    <i class="bi bi-x-lg me-1"></i>Annuler
+                                </button>
+                                <form method="post" action="{{ path('app_user_reset_pin', {id: u.id}) }}" class="d-inline">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('reset_pin_' ~ u.id) }}">
+                                    <button type="submit" class="btn btn-secondary btn-sm fw-bold px-3">
+                                        <i class="bi bi-shield-x me-1"></i>Remettre PIN à 1234
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}

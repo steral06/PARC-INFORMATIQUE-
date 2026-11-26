@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <title>Code PIN de Sécurité (2FA) | GTAC2A-IARDT</title>
+        <link rel="icon" type="image/png" href="{{ asset('images/logo-gta.png') }}">
+        
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+        {% block stylesheets %}
+        {% endblock %}
+
+        {% block javascripts %}
+            {% block importmap %}{{ importmap('app') }}{% endblock %}
+        {% endblock %}
+
+        <style>
+            :root {
+                --gta-orange: #E47000;
+                --gta-orange-hover: #CC6400;
+                --gta-black: #121212;
+            }
+            * {
+                box-sizing: border-box;
+                -webkit-tap-highlight-color: transparent;
+            }
+            body {
+                background: #121212;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
+                margin: 0;
+                font-family: system-ui, -apple-system, sans-serif;
+                position: relative;
+                overflow-x: hidden;
+            }
+
+            /* Filigrane discret d'arrière-plan */
+            .bg-watermark {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: min(500px, 90vw);
+                opacity: 0.05;
+                pointer-events: none;
+                z-index: 0;
+            }
+
+            .pin-card {
+                background: #ffffff;
+                border-radius: 1.25rem;
+                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
+                width: 100%;
+                max-width: 390px;
+                overflow: hidden;
+                border: 2px solid var(--gta-orange);
+                text-align: center;
+                padding: 2rem 1.5rem 1.5rem;
+                position: relative;
+                z-index: 1;
+            }
+
+            /* Zone interactive des 4 carreaux */
+            .pin-wrapper {
+                position: relative;
+                height: 80px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 1.75rem 0 1.25rem;
+            }
+
+            /* L'input réel transparent qui capte toutes les saisies (clavier physique + virtuel mobile) */
+            .real-pin-input {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                opacity: 0;
+                cursor: pointer;
+                z-index: 10;
+                font-size: 16px; /* Empêche le zoom auto sur Safari iOS */
+            }
+
+            .pin-boxes {
+                display: flex;
+                gap: 12px;
+                justify-content: center;
+                align-items: center;
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .pin-slot {
+                width: 56px;
+                height: 62px;
+                background-color: #fafafa;
+                border: 2px solid #e5e5e5;
+                border-radius: 0.75rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.85rem;
+                font-weight: 700;
+                color: #121212;
+                transition: all 0.25s ease;
+                box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+            }
+
+            .pin-slot.active {
+                border-color: var(--gta-orange);
+                background-color: #ffffff;
+                box-shadow: 0 0 0 3px rgba(228, 112, 0, 0.25);
+                transform: translateY(-2px);
+            }
+
+            .pin-slot.filled {
+                border-color: #121212;
+                background-color: #ffffff;
+            }
+
+            /* Animation de rassemblement des 4 carreaux en un seul */
+            .pin-boxes.merging .pin-slot:nth-child(1) {
+                transform: translate(96px, 0) scale(0.15);
+                opacity: 0;
+            }
+            .pin-boxes.merging .pin-slot:nth-child(2) {
+                transform: translate(32px, 0) scale(0.15);
+                opacity: 0;
+            }
+            .pin-boxes.merging .pin-slot:nth-child(3) {
+                transform: translate(-32px, 0) scale(0.15);
+                opacity: 0;
+            }
+            .pin-boxes.merging .pin-slot:nth-child(4) {
+                transform: translate(-96px, 0) scale(0.15);
+                opacity: 0;
+            }
+
+            /* Le carreau unique fusionné */
+            .merged-box {
+                position: absolute;
+                width: 76px;
+                height: 76px;
+                border-radius: 0.85rem;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                border: 3px solid var(--gta-orange);
+                background-color: #ffffff;
+                transform: scale(0);
+                transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+                z-index: 5;
+            }
+
+            .merged-box.show {
+                display: flex;
+                transform: scale(1);
+            }
+
+            /* Succès: Crochet vert */
+            .merged-box.success {
+                border-color: #16a34a !important;
+                background-color: #dcfce7 !important;
+                color: #16a34a !important;
+                animation: popSuccess 0.4s ease forwards;
+            }
+
+            /* Erreur: Croix rouge */
+            .merged-box.error {
+                border-color: #dc2626 !important;
+                background-color: #fee2e2 !important;
+                color: #dc2626 !important;
+                animation: shakeError 0.45s ease forwards;
+            }
+
+            @keyframes popSuccess {
+                0% { transform: scale(0.85); }
+                50% { transform: scale(1.15); }
+                100% { transform: scale(1); }
+            }
+
+            @keyframes shakeError {
+                0%, 100% { transform: translateX(0); }
+                20%, 60% { transform: translateX(-8px); }
+                40%, 80% { transform: translateX(8px); }
+            }
+
+            .feedback-text {
+                min-height: 22px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                margin-top: 0.25rem;
+            }
+
+            /* Pavé numérique tactile GTAC2A-IARDT */
+            .keypad {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+                max-width: 270px;
+                margin: 1.25rem auto 0;
+            }
+
+            .key-btn {
+                background: #f8f9fa;
+                border: 1px solid #e5e5e5;
+                border-radius: 0.65rem;
+                height: 50px;
+                font-size: 1.25rem;
+                font-weight: 700;
+                color: #121212;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                user-select: none;
+            }
+
+            .key-btn:hover {
+                background: #eeeeee;
+                border-color: #d4d4d4;
+            }
+
+            .key-btn:active {
+                background: var(--gta-orange);
+                color: #ffffff;
+                border-color: var(--gta-orange);
+                transform: scale(0.96);
+            }
+
+            .key-btn.action-btn {
+                font-size: 1rem;
+                color: #666666;
+            }
+            .key-btn.action-btn:hover {
+                color: #121212;
+            }
+        </style>
+    </head>
+    <body>
+        <div data-shortcuts-disabled hidden></div>
+        <img src="{{ asset('images/logo-gta.png') }}" class="bg-watermark" alt="">
+
+        <div class="pin-card">
+            <div class="mb-3">
+                <img src="{{ asset('images/logo-gta.png') }}" alt="GTAC2A-IARDT" style="max-height: 64px; width: auto;">
+            </div>
+
+            <h5 class="fw-bold mb-1" style="color: #121212;">Code de Sécurité (2FA)</h5>
+            <p class="text-muted small mb-0">Saisissez les 4 chiffres de votre code PIN</p>
+
+            <div class="pin-wrapper" id="pinWrapper">
+                <!-- Champ de saisie universel transparent -->
+                <input type="tel" 
+                       id="realPinInput" 
+                       inputmode="numeric" 
+                       pattern="[0-9]*" 
+                       maxlength="4" 
+                       autocomplete="off" 
+                       value=""
+                       class="real-pin-input" 
+                       autofocus>
+
+                <!-- Les 4 petits carreaux demandés (initialement tous vides) -->
+                <div class="pin-boxes" id="pinBoxes">
+                    <div class="pin-slot active" id="slot-0"></div>
+                    <div class="pin-slot" id="slot-1"></div>
+                    <div class="pin-slot" id="slot-2"></div>
+                    <div class="pin-slot" id="slot-3"></div>
+                </div>
+
+                <!-- Le carreau unique fusionné pour la validation -->
+                <div class="merged-box" id="mergedBox">
+                    <div id="spinnerIcon" class="spinner-border text-warning" style="width: 28px; height: 28px; border-width: 3px;" role="status">
+                        <span class="visually-hidden">Vérification...</span>
+                    </div>
+                    <i id="checkIcon" class="bi bi-check-lg d-none" style="font-size: 3rem; font-weight: 900;"></i>
+                    <i id="errorIcon" class="bi bi-x-lg d-none" style="font-size: 2.3rem; font-weight: 900;"></i>
+                </div>
+            </div>
+
+            <div id="feedbackText" class="feedback-text text-muted">Touchez pour saisir</div>
+
+            <!-- Pavé numérique intégré pour un confort absolu sur mobile & desktop -->
+            <div class="keypad" id="keypad">
+                <button type="button" class="key-btn" data-key="1">1</button>
+                <button type="button" class="key-btn" data-key="2">2</button>
+                <button type="button" class="key-btn" data-key="3">3</button>
+                <button type="button" class="key-btn" data-key="4">4</button>
+                <button type="button" class="key-btn" data-key="5">5</button>
+                <button type="button" class="key-btn" data-key="6">6</button>
+                <button type="button" class="key-btn" data-key="7">7</button>
+                <button type="button" class="key-btn" data-key="8">8</button>
+                <button type="button" class="key-btn" data-key="9">9</button>
+                <button type="button" class="key-btn action-btn" data-action="clear" title="Effacer tout">
+                    <i class="bi bi-trash3"></i>
+                </button>
+                <button type="button" class="key-btn" data-key="0">0</button>
+                <button type="button" class="key-btn action-btn" data-action="backspace" title="Effacer dernier chiffre">
+                    <i class="bi bi-backspace"></i>
+                </button>
+            </div>
+
+            <div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center">
+                <a href="{{ path('app_logout') }}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+                    <i class="bi bi-box-arrow-left"></i>
+                    <span>Quitter</span>
+                </a>
+            </div>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const realInput = document.getElementById('realPinInput');
+                const slots = [
+                    document.getElementById('slot-0'),
+                    document.getElementById('slot-1'),
+                    document.getElementById('slot-2'),
+                    document.getElementById('slot-3')
+                ];
+                const pinBoxes = document.getElementById('pinBoxes');
+                const mergedBox = document.getElementById('mergedBox');
+                const spinnerIcon = document.getElementById('spinnerIcon');
+                const checkIcon = document.getElementById('checkIcon');
+                const errorIcon = document.getElementById('errorIcon');
+                const feedbackText = document.getElementById('feedbackText');
+                const keypad = document.getElementById('keypad');
+
+                let currentPin = '';
+                let isVerifying = false;
+
+                function updateUi() {
+                    for (let i = 0; i < 4; i++) {
+                        if (i < currentPin.length) {
+                            slots[i].textContent = currentPin[i];
+                            slots[i].classList.add('filled');
+                            slots[i].classList.remove('active');
+                        } else if (i === currentPin.length) {
+                            slots[i].textContent = '';
+                            slots[i].classList.remove('filled');
+                            slots[i].classList.add('active');
+                        } else {
+                            slots[i].textContent = '';
+                            slots[i].classList.remove('filled', 'active');
+                        }
+                    }
+
+                    if (currentPin.length === 0) {
+                        slots[0].classList.add('active');
+                        feedbackText.className = 'feedback-text text-muted';
+                        feedbackText.innerText = 'Entrez votre code';
+                    } else if (currentPin.length < 4) {
+                        feedbackText.className = 'feedback-text text-muted';
+                        feedbackText.innerText = `${currentPin.length} / 4 chiffres`;
+                    }
+                }
+
+                function addDigit(digit) {
+                    if (isVerifying || currentPin.length >= 4) return;
+                    currentPin += digit;
+                    realInput.value = currentPin;
+                    updateUi();
+
+                    if (currentPin.length === 4) {
+                        triggerVerification(currentPin);
+                    }
+                }
+
+                function removeDigit() {
+                    if (isVerifying || currentPin.length === 0) return;
+                    currentPin = currentPin.slice(0, -1);
+                    realInput.value = currentPin;
+                    updateUi();
+                }
+
+                function clearAll() {
+                    if (isVerifying) return;
+                    currentPin = '';
+                    realInput.value = '';
+                    updateUi();
+                }
+
+                // Saisie via l'input natif transparent (mobile ou clavier physique)
+                realInput.addEventListener('input', (e) => {
+                    if (isVerifying) return;
+                    const cleaned = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    currentPin = cleaned;
+                    e.target.value = cleaned;
+                    updateUi();
+
+                    if (currentPin.length === 4) {
+                        triggerVerification(currentPin);
+                    }
+                });
+
+                // Clics sur le pavé numérique tactile
+                keypad.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.key-btn');
+                    if (!btn || isVerifying) return;
+
+                    const key = btn.dataset.key;
+                    const action = btn.dataset.action;
+
+                    if (key !== undefined) {
+                        addDigit(key);
+                    } else if (action === 'backspace') {
+                        removeDigit();
+                    } else if (action === 'clear') {
+                        clearAll();
+                    }
+                });
+
+                // Garder le focus sur le champ lors d'un tap sur les carreaux
+                document.getElementById('pinWrapper').addEventListener('click', () => {
+                    if (!isVerifying) realInput.focus();
+                });
+
+                async function triggerVerification(pin) {
+                    isVerifying = true;
+                    realInput.disabled = true;
+
+                    // 1. Animation : les 4 carreaux se rassemblent vers le centre
+                    pinBoxes.classList.add('merging');
+                    feedbackText.className = 'feedback-text text-muted';
+                    feedbackText.innerText = 'Vérification du code...';
+
+                    setTimeout(() => {
+                        // 2. Le carreau unique fusionné apparaît
+                        mergedBox.className = 'merged-box show';
+                        spinnerIcon.classList.remove('d-none');
+                        checkIcon.classList.add('d-none');
+                        errorIcon.classList.add('d-none');
+                    }, 220);
+
+                    try {
+                        const response = await fetch('{{ path("app_2fa_verify") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify({ pin: pin })
+                        });
+
+                        const data = await response.json();
+
+                        setTimeout(() => {
+                            spinnerIcon.classList.add('d-none');
+
+                            if (data.success) {
+                                // 3. SUCCÈS : crochet vert dans le carreau unique
+                                mergedBox.className = 'merged-box show success';
+                                checkIcon.classList.remove('d-none');
+                                feedbackText.className = 'feedback-text text-success';
+                                feedbackText.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Code validé, bienvenue !';
+
+                                setTimeout(() => {
+                                    window.location.replace(data.redirect || '{{ path("app_home") }}');
+                                }, 650);
+                            } else {
+                                // 4. ERREUR : croix rouge dans le carreau unique
+                                mergedBox.className = 'merged-box show error';
+                                errorIcon.classList.remove('d-none');
+                                feedbackText.className = 'feedback-text text-danger';
+                                feedbackText.innerText = data.message || 'Code PIN incorrect.';
+
+                                // Réinitialisation automatique après 900ms sans rechargement de page
+                                setTimeout(() => {
+                                    mergedBox.className = 'merged-box';
+                                    pinBoxes.classList.remove('merging');
+                                    currentPin = '';
+                                    realInput.value = '';
+                                    realInput.disabled = false;
+                                    isVerifying = false;
+                                    updateUi();
+                                    realInput.focus();
+                                }, 900);
+                            }
+                        }, 350);
+
+                    } catch (err) {
+                        mergedBox.className = 'merged-box show error';
+                        errorIcon.classList.remove('d-none');
+                        spinnerIcon.classList.add('d-none');
+                        feedbackText.className = 'feedback-text text-danger';
+                        feedbackText.innerText = 'Erreur réseau, veuillez réessayer.';
+
+                        setTimeout(() => {
+                            mergedBox.className = 'merged-box';
+                            pinBoxes.classList.remove('merging');
+                            currentPin = '';
+                            realInput.value = '';
+                            realInput.disabled = false;
+                            isVerifying = false;
+                            updateUi();
+                            realInput.focus();
+                        }, 900);
+                    }
+                }
+
+                // Initialisation au chargement avec réinitialisation explicite
+                realInput.value = '';
+                currentPin = '';
+                updateUi();
+                realInput.focus();
+
+                window.addEventListener('pageshow', () => {
+                    realInput.value = '';
+                    currentPin = '';
+                    updateUi();
+                });
+            });
+        </script>
+    </body>
+</html>

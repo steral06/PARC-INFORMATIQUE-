@@ -1,0 +1,327 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mon Profil & Sécurité | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-2 flex-shrink-0">
+    <div>
+        <h1 class="h3 fw-bold mb-1" style="color: #121212;">Mon Profil & Sécurité</h1>
+        <p class="text-muted mb-0 small">Identité du compte, double authentification (2FA) et contrôle des accès GTA</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <a href="{{ path('app_password_change') }}" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-shield-lock"></i>
+            <span>Modifier mot de passe</span>
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Colonne de Gauche : Carte d'Identité Utilisateur -->
+    <div class="col-12 col-lg-4">
+        <div class="card h-100 border-0 shadow-sm overflow-hidden" style="border-radius: 14px;">
+            <!-- Bandeau décoratif GTA -->
+            <div style="height: 90px; background: linear-gradient(135deg, #121212 0%, #212429 60%, var(--gta-orange) 100%);"></div>
+            
+            <div class="card-body text-center px-4 pb-4 pt-0" style="margin-top: -45px;">
+                <!-- Avatar GTA avec liseré -->
+                <div class="position-relative d-inline-block mb-3">
+                    <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold shadow-lg"
+                         style="width: 90px; height: 90px; font-size: 2.2rem; background: linear-gradient(135deg, var(--gta-orange) 0%, #ff8c1a 100%); border: 4px solid var(--bs-card-bg, #ffffff);">
+                        {{ user.userIdentifier|slice(0, 2)|upper }}
+                    </div>
+                    <span class="position-absolute bottom-0 end-0 p-2 bg-success border border-white rounded-circle shadow-sm" title="Session active"></span>
+                </div>
+
+                <h4 class="fw-bold mb-1 text-dark">{{ user.userIdentifier|capitalize }}</h4>
+                <div class="mb-3">
+                    {% if is_granted('ROLE_SUPER_ADMIN') %}
+                        <span class="badge bg-dark text-warning border px-3 py-2" style="font-size: 0.75rem; letter-spacing: 0.3px;">
+                            <i class="bi bi-shield-lock-fill me-1"></i>Super Administrateur DSI
+                        </span>
+                    {% else %}
+                        <span class="badge bg-secondary-subtle text-dark border px-3 py-2" style="font-size: 0.75rem; letter-spacing: 0.3px;">
+                            <i class="bi bi-person-fill-check me-1"></i>Opérateur Parc GTA
+                        </span>
+                    {% endif %}
+                </div>
+
+                <p class="text-muted small mb-4">
+                    Compte certifié pour la gestion du parc informatique de GTAC2A-IARDT.
+                </p>
+
+                <!-- Infos utiles résumées -->
+                <div class="list-group list-group-flush text-start border-top pt-2">
+                    <div class="list-group-item px-0 py-2.5 d-flex justify-content-between align-items-center bg-transparent border-0">
+                        <span class="small text-muted"><i class="bi bi-person me-2 text-secondary"></i>Identifiant de connexion</span>
+                        <span class="small fw-bold text-dark font-monospace">{{ user.userIdentifier }}</span>
+                    </div>
+                    <div class="list-group-item px-0 py-2.5 d-flex justify-content-between align-items-center bg-transparent border-0">
+                        <span class="small text-muted"><i class="bi bi-broadcast me-2 text-secondary"></i>Adresse IP machine</span>
+                        <span class="small fw-semibold text-dark font-monospace badge bg-light text-dark border">{{ client_ip }}</span>
+                    </div>
+                    <div class="list-group-item px-0 py-2.5 d-flex justify-content-between align-items-center bg-transparent border-0">
+                        <span class="small text-muted"><i class="bi bi-shield-check me-2 text-secondary"></i>Contrôle d'accès IP</span>
+                        {% if poste and poste.isAutorise %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.7rem;">Poste Autorisé</span>
+                        {% else %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle text-dark" style="font-size: 0.7rem;">Poste Standard</span>
+                        {% endif %}
+                    </div>
+                    <div class="list-group-item px-0 py-2.5 d-flex justify-content-between align-items-center bg-transparent border-0">
+                        <span class="small text-muted"><i class="bi bi-check-circle me-2 text-secondary"></i>Statut compte</span>
+                        <span class="badge bg-success text-white" style="font-size: 0.7rem;">Actif & Vérifié</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Colonne de Droite : Modules Sécurité GTA -->
+    <div class="col-12 col-lg-8">
+        <div class="d-flex flex-column gap-4">
+            
+            <!-- Module 1 : Double Authentification (2FA PIN) -->
+            <div class="card border-0 shadow-sm" style="border-radius: 14px;">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; background: #FEF3C7; color: #D97706;">
+                            <i class="bi bi-shield-check fs-6"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Sécurité 2FA (Code PIN de Connexion)</h6>
+                    </div>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1" style="font-size: 0.7rem;">
+                        <i class="bi bi-lock-fill me-1"></i>2FA Actif
+                    </span>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted small mb-3">
+                        À chaque nouvelle connexion, les 4 carreaux de sécurité requièrent votre code PIN personnel à 4 chiffres avant de vous accorder l'accès au parc.
+                    </p>
+
+                    <form method="post" class="p-3 bg-light rounded-3 border">
+                        <input type="hidden" name="action" value="update_pin">
+                        <div class="row align-items-center g-3">
+                            <div class="col-12 col-sm-auto">
+                                <label for="pin_code" class="form-label mb-0 fw-semibold text-dark small">
+                                    <i class="bi bi-key-fill text-warning me-1"></i> Nouveau code PIN (4 chiffres) :
+                                </label>
+                            </div>
+                            <div class="col-12 col-sm-auto">
+                                <input type="password" id="pin_code" name="pin_code" maxlength="4" pattern="[0-9]{4}" 
+                                       class="form-control text-center font-monospace fw-bold" 
+                                       style="width: 140px; letter-spacing: 6px; font-size: 1.1rem; border-color: var(--gta-orange);" 
+                                       placeholder="••••" required autocomplete="off">
+                            </div>
+                            <div class="col-12 col-sm-auto">
+                                <button type="submit" class="btn btn-warning d-inline-flex align-items-center gap-1.5 shadow-sm text-dark fw-bold px-3" style="background-color: var(--gta-orange); border-color: var(--gta-orange); color: #fff !important;" data-shortcut="v" title="Raccourci : V">
+                                    <i class="bi bi-check2-circle"></i>
+                                    <span>Enregistrer le PIN</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-text small mt-2" style="font-size: 0.75rem;">
+                            <i class="bi bi-info-circle me-1"></i>Modifiez votre code PIN à tout moment. Saisissez 4 chiffres (ex: 1234).
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Module 2 : Changement de mot de passe depuis le profil -->
+            <div class="card border-0 shadow-sm" style="border-radius: 14px;">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; background: #FEE2E2; color: #DC2626;">
+                            <i class="bi bi-shield-lock fs-6"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Modifier mon mot de passe</h6>
+                    </div>
+                    <span class="badge bg-light text-secondary border px-2.5 py-1" style="font-size: 0.7rem;">
+                        <i class="bi bi-lock me-1"></i>Accès sécurisé
+                    </span>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted small mb-3">
+                        Changez votre mot de passe à tout moment. Votre ancien mot de passe est requis pour confirmer votre identité.
+                    </p>
+                    <form method="post" class="p-3 bg-light rounded-3 border">
+                        <input type="hidden" name="action" value="update_password">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <label for="current_password" class="form-label fw-semibold text-dark small">
+                                    <i class="bi bi-lock-fill text-secondary me-1"></i>Mot de passe actuel
+                                </label>
+                                <input type="password" id="current_password" name="current_password"
+                                       class="form-control" placeholder="••••••••" required autocomplete="current-password">
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label for="new_password" class="form-label fw-semibold text-dark small">
+                                    <i class="bi bi-key-fill text-danger me-1"></i>Nouveau mot de passe
+                                </label>
+                                <input type="password" id="new_password" name="new_password"
+                                       class="form-control" placeholder="Min. 6 caractères" minlength="6" required autocomplete="new-password">
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label for="confirm_password" class="form-label fw-semibold text-dark small">
+                                    <i class="bi bi-check-circle text-danger me-1"></i>Confirmer le mot de passe
+                                </label>
+                                <input type="password" id="confirm_password" name="confirm_password"
+                                       class="form-control" placeholder="Répétez le nouveau" minlength="6" required autocomplete="new-password">
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-danger d-inline-flex align-items-center gap-2 fw-bold shadow-sm" data-shortcut="v" title="Raccourci : V">
+                                    <i class="bi bi-shield-lock-fill"></i>
+                                    <span>Changer mon mot de passe</span>
+                                </button>
+                                <span class="text-muted small ms-3">
+                                    <i class="bi bi-info-circle me-1"></i>Le cycle d'expiration de 30 jours sera réinitialisé.
+                                </span>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Module 3 : Cycle de Renouvellement du Mot de Passe (30 Jours) -->
+
+            <div class="card border-0 shadow-sm" style="border-radius: 14px;">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; background: #EDE9FE; color: #7C3AED;">
+                            <i class="bi bi-clock-history fs-6"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Validité & Renouvellement Périodique (Cycle 30 jours)</h6>
+                    </div>
+                    {% if days_left <= 5 %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1" style="font-size: 0.7rem;">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>Expire bientôt
+                        </span>
+                    {% else %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1" style="font-size: 0.7rem;">
+                            <i class="bi bi-shield-check me-1"></i>Conforme GTA
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted small mb-3">
+                        Les identifiants doivent être renouvelés tous les 30 jours.
+                    </p>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1.5">
+                            <span class="small fw-semibold text-dark">Temps restant avant expiration obligatoire :</span>
+                            <span class="small fw-bold {% if days_left <= 5 %}text-danger{% else %}text-success{% endif %}">
+                                {{ days_left }} jour(s) restant(s)
+                            </span>
+                        </div>
+                        <div class="progress" style="height: 8px; border-radius: 10px; background-color: #f1f5f9;">
+                            <div class="progress-bar {% if days_left <= 5 %}bg-danger{% elseif days_left <= 10 %}bg-warning{% else %}bg-success{% endif %}" 
+                                 role="progressbar" style="width: {{ 100 - percent_used }}%;" 
+                                 aria-valuenow="{{ 100 - percent_used }}" aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between text-muted small mt-1" style="font-size: 0.7rem;">
+                            <span>Dernière mise à jour : il y a {{ days_passed }} jour(s)</span>
+                            <span>Cycle total : 30 jours</span>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between pt-3 border-top mt-3">
+                        <span class="text-muted small">Besoin d'anticiper le renouvellement ?</span>
+                        <a href="{{ path('app_password_change') }}" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1.5 px-3">
+                            <i class="bi bi-key"></i>
+                            <span>Changer mon mot de passe maintenant</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {% if is_granted('ROLE_SUPER_ADMIN') %}
+            {# Module 4 : Authentification Biométrique (WebAuthn) - SUPER_ADMIN uniquement #}
+            <div class="card border-0 shadow-sm" style="border-radius: 14px;"
+                 data-controller="webauthn"
+                 data-webauthn-register-url-value="{{ path('app_webauthn_register_options') }}"
+                 data-webauthn-verify-url-value="{{ path('app_webauthn_register_verify') }}">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; background: #FFF7ED; color: #E47000;">
+                            <i class="bi bi-fingerprint fs-6"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Authentification Biométrique (Empreinte Digitale)</h6>
+                    </div>
+                    {% if webauthn_credentials|length > 0 %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.7rem;">
+                            <i class="bi bi-fingerprint me-1"></i>{{ webauthn_credentials|length }} appareil(s)
+                        </span>
+                    {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1" style="font-size: 0.7rem;">
+                            <i class="bi bi-dash me-1"></i>Non configuré
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted small mb-3">
+                        Connectez-vous sans mot de passe en utilisant <strong>Windows Hello</strong>, Touch ID ou le capteur d'empreintes de votre appareil.
+                        Réservé aux <strong>Super Administrateurs</strong>.
+                    </p>
+
+                    <div data-webauthn-target="status" style="display:none; font-size: 0.85rem; margin-bottom: 0.75rem; font-weight: 500;"></div>
+
+                    {% if webauthn_credentials|length > 0 %}
+                        <div class="mb-3">
+                            <div class="small fw-semibold text-dark mb-2"><i class="bi bi-cpu me-1"></i>Appareils enregistrés :</div>
+                            {% for cred in webauthn_credentials %}
+                                <div class="d-flex align-items-center justify-content-between p-2 bg-light rounded-2 border mb-2" data-credential-item>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-fingerprint text-warning"></i>
+                                        <div>
+                                            <div class="small fw-semibold text-dark">{{ cred.deviceName }}</div>
+                                            <div class="text-muted" style="font-size: 0.7rem;">
+                                                Enregistré le {{ cred.createdAt|date('d/m/Y') }}
+                                                {% if cred.lastUsedAt %}
+                                                 · Dernière utilisation : {{ cred.lastUsedAt|date('d/m/Y') }}
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="button"
+                                            class="btn btn-outline-danger btn-sm py-0 px-2"
+                                            data-action="click->webauthn#deleteCredential"
+                                            data-credential-id="{{ cred.id }}">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <button type="button"
+                            class="btn btn-outline-dark d-inline-flex align-items-center gap-2 fw-semibold shadow-sm"
+                            data-action="click->webauthn#register">
+                        <i class="bi bi-fingerprint"></i>
+                        <span>{{ webauthn_credentials|length > 0 ? 'Ajouter un autre appareil' : 'Enregistrer mon empreinte digitale' }}</span>
+                    </button>
+
+                </div>
+            </div>
+            {% endif %}
+
+            {# Module réseau #}
+            <div class="card border-0 shadow-sm" style="border-radius: 14px;">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px; background: #E0F2FE; color: #0284C7;">
+                            <i class="bi bi-hdd-network fs-5"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-1 text-dark">Adresse IP actuelle</h6>
+                            <span class="text-dark font-monospace fw-semibold">{{ client_ip }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

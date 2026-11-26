@@ -1,0 +1,470 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Pointage — {{ campagne.titre }} | GTAC2A-IARDT{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .kpi-card {
+        border-radius: 10px;
+        padding: 12px 16px;
+        border: 1px solid rgba(0,0,0,.08);
+        background: #fff;
+        transition: transform .12s;
+    }
+    .kpi-card:hover { transform: translateY(-2px); }
+    [data-bs-theme="dark"] .kpi-card { background: #191e2b !important; border-color: rgba(255,255,255,.08) !important; }
+
+    .badge-conforme     { background: rgba(16,185,129,.12); color:#059669; border:1px solid rgba(16,185,129,.3); }
+    .badge-deplace      { background: rgba(228,112,0,.12); color:var(--gta-orange); border:1px solid rgba(228,112,0,.35); }
+    .badge-manquant     { background: rgba(239,68,68,.12); color:#dc2626; border:1px solid rgba(239,68,68,.3); }
+    .badge-horsservice  { background: rgba(108,117,125,.12); color:#6c757d; border:1px solid rgba(108,117,125,.3); }
+    .badge-enattente    { background: rgba(203,213,225,.25); color:#64748b; border:1px solid rgba(203,213,225,.6); }
+
+    .ligne-row { transition: background .12s; }
+    .ligne-row:hover { background: rgba(228, 112, 0, 0.03); }
+    .ligne-row.is-ecart { background: rgba(239, 68, 68, 0.04); }
+</style>
+{% endblock %}
+
+{% block body %}
+{# ─── En-tête + Boutons ──────────────────────────────────────── #}
+<div class="mb-3 flex-shrink-0">
+    <a href="{{ path('app_inventaire_index') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 mb-2">
+        <i class="bi bi-arrow-left"></i>
+        <span>Retour aux campagnes</span>
+    </a>
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h1 class="h3 fw-bold mb-1" style="color: #121212;">{{ campagne.titre }}</h1>
+                {% if campagne.statut == 'En cours' %}
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle">En cours</span>
+                {% else %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">Clôturée</span>
+                {% endif %}
+            </div>
+            <p class="text-muted small mb-0">
+                Démarrée le {{ campagne.dateDebut|date('d/m/Y') }} par <strong>{{ campagne.creePar ?? 'DSI' }}</strong>
+                {% if campagne.dateCloture %}&bull; Clôturée le {{ campagne.dateCloture|date('d/m/Y') }}{% endif %}
+            </p>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ path('app_inventaire_ecarts', {'id': campagne.id}) }}" class="btn btn-outline-warning btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span>Rapport d'écarts ({{ campagne.deplacesCount + campagne.manquantsCount + campagne.horsServiceCount }})</span>
+            </a>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 shadow-sm opacity-50"
+                    disabled
+                    title="PV officiel PDF bientôt disponible (version ultérieure)"
+                    style="cursor: not-allowed;">
+                <i class="bi bi-file-earmark-pdf text-secondary"></i>
+                <span>PV officiel PDF</span>
+                <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size: 0.65rem;">Bientôt</span>
+            </button>
+            {% if campagne.statut == 'En cours' and is_granted('ROLE_ADMIN') %}
+                <button type="button"
+                        class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1 shadow-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalCloturer">
+                    <i class="bi bi-lock"></i>
+                    <span>Clôturer la campagne</span>
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# ─── KPIs & Barre de progression ────────────────────────────── #}
+<div class="card mb-4 shadow-sm border-0">
+    <div class="card-body p-3">
+        {# Barre de progression globale #}
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-bold text-dark">Progression du recensement</span>
+                <span class="small fw-bold text-primary">{{ campagne.tauxProgression }}% ({{ campagne.equipementsControlesCount }}/{{ campagne.totalEquipements }} équipements contrôlés)</span>
+            </div>
+            <div class="progress" style="height: 10px;">
+                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ campagne.tauxProgression }}%;"></div>
+            </div>
+        </div>
+
+        {# Compteurs détaillés #}
+        <div class="row g-2 text-center">
+            <div class="col-6 col-md-2">
+                <div class="kpi-card">
+                    <div class="small text-muted" style="font-size: .72rem;">Total</div>
+                    <div class="fw-bold fs-5 text-dark">{{ campagne.totalEquipements }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="kpi-card" style="border-left: 3px solid #059669;">
+                    <div class="small text-muted" style="font-size: .72rem;">Conformes</div>
+                    <div class="fw-bold fs-5 text-success">{{ campagne.conformesCount }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="kpi-card" style="border-left: 3px solid var(--gta-orange);">
+                    <div class="small text-muted" style="font-size: .72rem;">Déplacés</div>
+                    <div class="fw-bold fs-5" style="color: var(--gta-orange);">{{ campagne.deplacesCount }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="kpi-card" style="border-left: 3px solid #dc2626;">
+                    <div class="small text-muted" style="font-size: .72rem;">Manquants</div>
+                    <div class="fw-bold fs-5 text-danger">{{ campagne.manquantsCount }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="kpi-card" style="border-left: 3px solid #6c757d;">
+                    <div class="small text-muted" style="font-size: .72rem;">Hors service</div>
+                    <div class="fw-bold fs-5 text-secondary">{{ campagne.horsServiceCount }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="kpi-card" style="border-left: 3px solid #64748b;">
+                    <div class="small text-muted" style="font-size: .72rem;">En attente</div>
+                    <div class="fw-bold fs-5 text-muted">{{ campagne.enAttenteCount }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ─── Barre de filtres & Recherche ───────────────────────────── #}
+<div class="card mb-3 shadow-sm border-0">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-12 col-md-5">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text"
+                           name="q"
+                           class="form-control"
+                           placeholder="Rechercher par nom, S/N ou tag inventaire…"
+                           value="{{ current_search }}">
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <select name="statut" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="all" {% if current_statut == 'all' %}selected{% endif %}>-- Tous les statuts --</option>
+                    {% for st in statuts_choices %}
+                        <option value="{{ st }}" {% if current_statut == st %}selected{% endif %}>{{ st }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <select name="lieu" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- Tous les lieux attendus --</option>
+                    {% for l in lieux %}
+                        <option value="{{ l.id }}" {% if current_lieu == l.id %}selected{% endif %}>{{ l.nomLieu }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-1 d-flex gap-1">
+                <button type="submit" class="btn btn-dark btn-sm w-100" title="Filtrer"><i class="bi bi-funnel"></i></button>
+                {% if current_search or current_statut != 'all' or current_lieu %}
+                    <a href="{{ path('app_inventaire_show', {'id': campagne.id}) }}" class="btn btn-outline-secondary btn-sm" title="Réinitialiser">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ─── Tableau des lignes d'inventaire ────────────────────────── #}
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <span class="fw-bold small text-dark">
+            <i class="bi bi-list-check me-1 text-primary"></i> Feuille de pointage ({{ lignes|length }} équipement(s))
+        </span>
+        <span class="text-muted small" style="font-size: .75rem;">
+            Cliquez sur un statut pour pointer directement la machine
+        </span>
+    </div>
+
+    {% if lignes is empty %}
+        <div class="card-body text-center py-5">
+            <p class="text-muted small mb-0">Aucun équipement ne correspond aux filtres appliqués.</p>
+        </div>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="font-size: .85rem;">
+                <thead class="table-light small">
+                    <tr>
+                        <th>Équipement</th>
+                        <th>S/N / Tag</th>
+                        <th>Lieu Attendu</th>
+                        <th>Lieu Constaté</th>
+                        <th>Statut Constaté</th>
+                        <th>Dernier Pointage</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in lignes %}
+                        {% set eq = l.equipement %}
+                        <tr class="ligne-row {% if l.isEcart %}is-ecart{% endif %}" id="ligne-{{ l.id }}">
+                            <td>
+                                <div class="fw-bold text-dark">
+                                    <a href="{{ path('app_equipement_show', {'id': eq.id}) }}" class="text-decoration-none text-dark" target="_blank">
+                                        {{ eq.nom }}
+                                    </a>
+                                </div>
+                                <div class="text-muted" style="font-size: .72rem;">
+                                    {{ eq.marque }} {{ eq.modele }}
+                                    &bull; {{ eq.categorie ? eq.categorie.nomCat : 'Sans catégorie' }}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="font-monospace small fw-semibold">{{ eq.numeroSerie }}</div>
+                                {% if eq.tagInventaire %}
+                                    <span class="badge bg-light text-dark border font-monospace" style="font-size: .7rem;">{{ eq.tagInventaire }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary-subtle text-dark border">{{ l.lieuAttendu ?? '—' }}</span>
+                            </td>
+                            <td>
+                                {% if l.lieuConstate %}
+                                    {% if l.lieuConstate.nomLieu != l.lieuAttendu %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle fw-bold">
+                                            <i class="bi bi-arrow-right-short"></i>{{ l.lieuConstate.nomLieu }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark border">{{ l.lieuConstate.nomLieu }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted small fst-italic">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if l.statutConstate == 'Conforme' %}
+                                    <span class="badge badge-conforme"><i class="bi bi-check-circle me-1"></i>Conforme</span>
+                                {% elseif l.statutConstate == 'Déplacé' %}
+                                    <span class="badge badge-deplace"><i class="bi bi-arrows-move me-1"></i>Déplacé</span>
+                                {% elseif l.statutConstate == 'Manquant' %}
+                                    <span class="badge badge-manquant"><i class="bi bi-x-circle me-1"></i>Manquant</span>
+                                {% elseif l.statutConstate == 'Hors service' %}
+                                    <span class="badge badge-horsservice"><i class="bi bi-tools me-1"></i>Hors service</span>
+                                {% else %}
+                                    <span class="badge badge-enattente"><i class="bi bi-dash-circle me-1"></i>En attente</span>
+                                {% endif %}
+                                {% if l.observations %}
+                                    <div class="text-muted small fst-italic mt-1" style="font-size: .7rem;" title="{{ l.observations }}">
+                                        {{ l.observations|slice(0, 30) }}...
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td class="small">
+                                {% if l.datePointage %}
+                                    <div>{{ l.datePointage|date('d/m/Y H:i') }}</div>
+                                    <div class="text-muted" style="font-size: .7rem;">par {{ l.pointePar ?? 'DSI' }}</div>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if campagne.statut == 'En cours' %}
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary py-0 px-2"
+                                            style="font-size: .78rem;"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalPointer"
+                                            data-ligne-id="{{ l.id }}"
+                                            data-eq-nom="{{ eq.nom }}"
+                                            data-eq-sn="{{ eq.numeroSerie }}"
+                                            data-lieu-attendu="{{ l.lieuAttendu }}"
+                                            data-statut="{{ l.statutConstate }}"
+                                            data-lieu-id="{{ l.lieuConstate ? l.lieuConstate.id : '' }}"
+                                            data-obs="{{ l.observations }}">
+                                        <i class="bi bi-pencil-square me-1"></i>Pointer
+                                    </button>
+                                {% else %}
+                                    <span class="text-muted small">Clôturé</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block modals %}
+{# ─── Modale de Pointage Rapide ──────────────────────────────── #}
+<div class="modal fade" id="modalPointer" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form id="formPointer" method="post" action="">
+                <input type="hidden" name="_token" id="pointerCsrf" value="">
+
+                <div class="modal-header bg-dark text-white py-3">
+                    <h5 class="modal-title fs-6 fw-bold">
+                        <i class="bi bi-clipboard2-check text-warning me-2"></i>Pointer un équipement
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    {# Info machine #}
+                    <div class="p-3 bg-light rounded-3 mb-3">
+                        <div class="fw-bold text-dark" id="modalEqNom">-</div>
+                        <div class="small text-muted font-monospace" id="modalEqSn">-</div>
+                        <div class="small text-muted mt-1">Lieu attendu : <strong id="modalLieuAttendu" class="text-dark">-</strong></div>
+                    </div>
+
+                    {# Statut constaté #}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Statut physique constaté <span class="text-danger">*</span></label>
+                        <select name="statut" id="modalStatutSelect" class="form-select form-select-sm" required onchange="onStatutChange(this.value)">
+                            <option value="Conforme">🟢 Conforme (Présent et fonctionnel dans son lieu)</option>
+                            <option value="Déplacé">🟠 Déplacé (Trouvé dans un autre bureau/lieu)</option>
+                            <option value="Manquant">🔴 Manquant (Introuvable lors du passage)</option>
+                            <option value="Hors service">⚫ Hors service (Physiquement présent mais en panne)</option>
+                        </select>
+                    </div>
+
+                    {# Lieu constaté (affiché si statut Déplacé) #}
+                    <div class="mb-3" id="wrapperLieuConstate">
+                        <label class="form-label fw-semibold small">Lieu réel constaté</label>
+                        <select name="lieu_constate_id" id="modalLieuSelect" class="form-select form-select-sm">
+                            <option value="">-- Même lieu que celui attendu --</option>
+                            {% for l in lieux %}
+                                <option value="{{ l.id }}">{{ l.nomLieu }} ({{ l.batiment }})</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text small" style="font-size: .72rem;">
+                            Renseignez l'endroit où la machine a été physiquement trouvée.
+                        </div>
+                    </div>
+
+                    {# Observations #}
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold small">Observations / Remarques</label>
+                        <textarea name="observations"
+                                  id="modalObsTextarea"
+                                  rows="2"
+                                  class="form-control form-control-sm"
+                                  placeholder="Ex : Écran rayé, câble d'alimentation manquant, déplacé pour réunion temporaire…"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 px-4 pb-4 pt-0 d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm">
+                        <i class="bi bi-check2-circle me-1"></i>Enregistrer le pointage
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ─── Modale Clôture de Campagne ─────────────────────────────── #}
+{% if campagne.statut == 'En cours' and is_granted('ROLE_ADMIN') %}
+<div class="modal fade" id="modalCloturer" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="post" action="{{ path('app_inventaire_cloturer', {'id': campagne.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('cloturer_campagne_' ~ campagne.id) }}">
+
+                <div class="modal-header bg-danger text-white py-3">
+                    <h5 class="modal-title fs-6 fw-bold">
+                        <i class="bi bi-lock me-2"></i>Clôturer définitivement la campagne ?
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <p class="mb-2">
+                        Vous êtes sur le point de clôturer la campagne <strong>« {{ campagne.titre }} »</strong>.
+                    </p>
+                    <div class="alert alert-warning border-0 p-3 rounded-3 small">
+                        <strong>Bilan actuel :</strong>
+                        <ul class="mb-0 ps-3 mt-1">
+                            <li>{{ campagne.tauxProgression }}% d'équipements recensés ({{ campagne.equipementsControlesCount }}/{{ campagne.totalEquipements }}).</li>
+                            <li>{{ campagne.conformesCount }} conforme(s).</li>
+                            <li><strong>{{ campagne.deplacesCount + campagne.manquantsCount + campagne.horsServiceCount }} écart(s)</strong> identifié(s).</li>
+                            <li>{{ campagne.enAttenteCount }} équipement(s) non pointé(s).</li>
+                        </ul>
+                    </div>
+                    <p class="text-muted small mb-0">
+                        Cette action fige la campagne, horodate la clôture et permet d'éditer le procès-verbal officiel.
+                    </p>
+                </div>
+
+                <div class="modal-footer border-0 px-4 pb-4 pt-0 d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger btn-sm px-4 fw-bold shadow-sm">
+                        <i class="bi bi-lock me-1"></i>Confirmer la clôture
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    document.addEventListener('turbo:load', function() {
+        var modalPointer = document.getElementById('modalPointer');
+        if (!modalPointer) return;
+
+        modalPointer.addEventListener('show.bs.modal', function(event) {
+            var btn = event.relatedTarget;
+            if (!btn) return;
+
+            var ligneId = btn.getAttribute('data-ligne-id');
+            var eqNom = btn.getAttribute('data-eq-nom');
+            var eqSn = btn.getAttribute('data-eq-sn');
+            var lieuAttendu = btn.getAttribute('data-lieu-attendu');
+            var statut = btn.getAttribute('data-statut') || 'Conforme';
+            var lieuId = btn.getAttribute('data-lieu-id') || '';
+            var obs = btn.getAttribute('data-obs') || '';
+
+            document.getElementById('modalEqNom').textContent = eqNom;
+            document.getElementById('modalEqSn').textContent = 'S/N : ' + eqSn;
+            document.getElementById('modalLieuAttendu').textContent = lieuAttendu || 'N/C';
+            document.getElementById('modalStatutSelect').value = (statut === 'En attente') ? 'Conforme' : statut;
+            document.getElementById('modalLieuSelect').value = lieuId;
+            document.getElementById('modalObsTextarea').value = obs;
+
+            var form = document.getElementById('formPointer');
+            form.action = '/inventaire/ligne/' + ligneId + '/pointer';
+
+            // CSRF token via inline mapping
+            var csrfInput = document.getElementById('pointerCsrf');
+            csrfInput.value = '';
+            if (window.pointerTokens && window.pointerTokens[ligneId]) {
+                csrfInput.value = window.pointerTokens[ligneId];
+            }
+
+            onStatutChange(document.getElementById('modalStatutSelect').value);
+        });
+    });
+
+    function onStatutChange(val) {
+        var wrapper = document.getElementById('wrapperLieuConstate');
+        if (wrapper) {
+            wrapper.style.display = (val === 'Manquant') ? 'none' : 'block';
+        }
+    }
+</script>
+
+{# Mapping des tokens CSRF pour chaque ligne #}
+<script>
+    window.pointerTokens = {
+        {% for l in lignes %}
+            "{{ l.id }}": "{{ csrf_token('pointer_' ~ l.id) }}",
+        {% endfor %}
+    };
+</script>
+{% endblock %}
+

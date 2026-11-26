@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Document GTAC2A-IARDT{% endblock %}</title>
+    <style>
+        /* ─── Reset & Base ─────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 10pt;
+            color: #1e1e1e;
+            line-height: 1.5;
+        }
+
+        /* ─── En-tête institutionnel GTAC2A ───── */
+        .pdf-header {
+            border-bottom: 3px solid #E47000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .pdf-header table { width: 100%; border-collapse: collapse; }
+        .pdf-header .org-name {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #121212;
+        }
+        .pdf-header .org-sub {
+            font-size: 8pt;
+            color: #666;
+        }
+        .pdf-header .doc-title {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #E47000;
+            text-align: right;
+        }
+        .pdf-header .doc-date {
+            font-size: 8pt;
+            color: #999;
+            text-align: right;
+        }
+
+        /* ─── Filigrane discret ────────────────── */
+        .watermark {
+            position: fixed;
+            top: 45%;
+            left: 25%;
+            font-size: 60pt;
+            color: rgba(228, 112, 0, 0.04);
+            transform: rotate(-30deg);
+            z-index: -1;
+            white-space: nowrap;
+        }
+
+        /* ─── Sections ─────────────────────────── */
+        .section-title {
+            background: #f5f0eb;
+            border-left: 4px solid #E47000;
+            padding: 6px 12px;
+            font-size: 11pt;
+            font-weight: bold;
+            color: #121212;
+            margin: 16px 0 10px 0;
+        }
+
+        /* ─── Tableau d'informations (clé-valeur) ─ */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+        .info-table td {
+            padding: 5px 10px;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+        .info-table .label {
+            width: 35%;
+            color: #666;
+            font-weight: 600;
+            font-size: 9pt;
+        }
+        .info-table .value {
+            color: #1e1e1e;
+        }
+
+        /* ─── Tableau de données (lignes) ──────── */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+            font-size: 9pt;
+        }
+        .data-table th {
+            background: #E47000;
+            color: #fff;
+            padding: 6px 8px;
+            text-align: left;
+            font-size: 8pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .data-table td {
+            padding: 5px 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .data-table tr:nth-child(even) td {
+            background: #faf8f5;
+        }
+
+        /* ─── Badges ───────────────────────────── */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 8pt;
+            font-weight: 600;
+        }
+        .badge-success  { background: #d1fae5; color: #065f46; }
+        .badge-warning  { background: #fef3c7; color: #92400e; }
+        .badge-danger   { background: #fee2e2; color: #991b1b; }
+        .badge-info     { background: #dbeafe; color: #1e40af; }
+        .badge-secondary { background: #f3f4f6; color: #374151; }
+        .badge-orange   { background: rgba(228, 112, 0, 0.12); color: #E47000; }
+
+        /* ─── Pied de page ─────────────────────── */
+        .pdf-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border-top: 1px solid #ddd;
+            padding: 8px 20px;
+            font-size: 7pt;
+            color: #999;
+        }
+        .pdf-footer table { width: 100%; border-collapse: collapse; }
+
+        /* ─── Notes ────────────────────────────── */
+        .notes-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-top: 6px;
+            font-size: 9pt;
+            color: #374151;
+        }
+
+        /* ─── Utilitaires ──────────────────────── */
+        .text-muted { color: #999; }
+        .text-orange { color: #E47000; }
+        .text-bold { font-weight: 700; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .mt-1 { margin-top: 6px; }
+        .mt-2 { margin-top: 12px; }
+        .mb-1 { margin-bottom: 6px; }
+        .small { font-size: 8pt; }
+        .mono { font-family: 'Courier New', Courier, monospace; }
+
+        {% block extra_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+    <div class="watermark">GTAC2A-IARDT</div>
+
+    <!-- En-tête institutionnel -->
+    <div class="pdf-header">
+        <table>
+            <tr>
+                <td style="width: 60%;">
+                    <div class="org-name">GTAC2A-IARDT</div>
+                    <div class="org-sub">Direction des Systèmes d'Information — Gestion du Parc Informatique</div>
+                    <div class="org-sub">Application G-PARC</div>
+                </td>
+                <td>
+                    <div class="doc-title">{% block doc_title %}Fiche{% endblock %}</div>
+                    <div class="doc-date">Édité le {{ "now"|date("d/m/Y à H:i") }}</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    {% block body %}{% endblock %}
+
+    <!-- Pied de page -->
+    <div class="pdf-footer">
+        <table>
+            <tr>
+                <td>G-PARC — Système Intégré de Gestion de Parc Informatique & Traçabilité DSI</td>
+                <td style="text-align: right;">GTAC2A-IARDT (Togo) — Document confidentiel</td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
+

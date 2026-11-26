@@ -1,0 +1,410 @@
+================================================================================
+          GUIDE COMPLET & SCRIPT MOT À MOT — PRÉSENTATION AU MAÎTRE DE STAGE
+                   APPLICATION G-PARC (GTAC2A-IARDT — DSI)
+================================================================================
+Projet        : G-PARC (Gestion Intégrée de Parc Informatique & Traçabilité DSI)
+Destinataire  : Maître de Stage / Tuteur DSI — GTAC2A-IARDT (Togo)
+Format        : Démonstration pratique interactive (10 à 15 minutes)
+Objectif      : Montrer que les objectifs du stage sont atteints à 100%, prouver
+                la robustesse de l'outil et valider le livrable de stage.
+================================================================================
+
+--------------------------------------------------------------------------------
+TABLE DES MATIÈRES DU SCRIPT DE DÉMONSTRATION
+--------------------------------------------------------------------------------
+1. ACCUEIL & INTRODUCTION (Rappel des objectifs du stage)
+2. ÉTAPE 1 : Sécurité, Filtrage Réseau IP & Authentification 2FA / WebAuthn
+3. ÉTAPE 2 : Dashboard Décisionnel (Bento Grid, KPIs financiers & Thème clair/sombre)
+4. ÉTAPE 3 : Inventaire des Équipements & Recherche Instantanée
+5. ÉTAPE 4 : Gestion du Personnel & Accordéon des Dotations
+6. ÉTAPE 5 : Démonstration du Cycle de Vie en Direct (Attribution -> Restitution)
+7. ÉTAPE 6 : Gestion des Pannes, Maintenances & Coûts SAV
+8. ÉTAPE 7 : Centre de Rapports & Bilan Global Excel GTAC2A
+9. ÉTAPE 8 : Protection Anti-DoS / Rate Limiting & Journal d'Audit SHA-256
+10. CONCLUSION & TRANSITION VERS LES RETOURS DU MAÎTRE DE STAGE
+11. GUIDE DE RÉPONSE AUX QUESTIONS DU MAÎTRE DE STAGE
+
+================================================================================
+1. ACCUEIL & INTRODUCTION (1 MINUTE)
+================================================================================
+[ACTION PRÉALABLE] :
+- Ouvrez le navigateur en plein écran (touche F11) sur la page de connexion :
+  http://localhost:8000/login
+- Soyez calme, souriant, installez-vous à côté ou en face de votre maître de stage.
+
+[CE QUE TU DIS MOT À MOT :]
+"Bonjour Monsieur [ou son Prénom/Titre], je vous remercie de m'accorder ce moment.
+
+Comme convenu dans le cadre de mon stage au sein de la DSI de GTAC2A,
+j'ai finalisé le développement de l'application G-PARC.
+
+Pour rappel, l'objectif principal était de remplacer la gestion manuelle sur fichiers
+Excel par une plateforme web centralisée, moderne et sécurisée, capable de :
+1. Suivre l'inventaire en temps réel de tous nos équipements (postes, écrans, imprimantes, serveurs).
+2. Savoir exactement à chaque instant quel agent ou direction dispose de quel matériel.
+3. Chiffrer la valeur financière de notre parc et anticiper les renouvellements de machines vétustes.
+4. Tracer toutes les pannes et leurs coûts de maintenance.
+5. Garantir une sécurité maximale conforme aux exigences de GTAC2A avec filtrage IP, 2FA et journal d'audit.
+
+Je vais vous faire une démonstration complète en conditions réelles, de la connexion
+jusqu'à l'export des rapports."
+
+================================================================================
+2. ÉTAPE 1 : SÉCURITÉ, FILTRAGE RÉSEAU & CONNEXION (1 MINUTE 30)
+================================================================================
+[ACTION À L'ÉCRAN] :
+- Vous êtes sur la page `http://localhost:8000/login`.
+- Montrez du doigt ou avec la souris le bas de la carte où est affichée l'adresse IP.
+
+[CE QUE TU DIS MOT À MOT :]
+"Nous commençons par la porte d'entrée de l'application : l'écran de connexion.
+
+Comme vous pouvez le voir ici en bas, le système détecte immédiatement l'adresse IP
+de la machine cliente. Pourquoi ? Parce que nous avons mis en place une restriction
+d'accès par poste de travail : seuls les postes préalablement enregistrés et autorisés
+par la DSI dans le système peuvent se connecter. Si une machine inconnue se branche
+sur le réseau ou si quelqu'un essaie de se connecter depuis l'extérieur, l'accès est
+automatiquement rejeté.
+
+De plus, pour contrer les attaques par force brute ou les tentatives de saturation
+(DoS), nous avons intégré un 'Rate Limiter' : après 5 tentatives erronées, la connexion
+est temporairement verrouillée pendant 15 minutes."
+
+[ACTION À L'ÉCRAN] :
+- Saisissez vos identifiants (ex: superadmin) et validez.
+- Tapez le code PIN 2FA (ou montrez l'option de connexion WebAuthn avec clé FIDO2 / Windows Hello).
+- Vous arrivez sur la page d'accueil (Dashboard).
+
+[CE QUE TU DIS MOT À MOT :]
+"En plus du mot de passe, l'authentification est protégée par un double facteur :
+un code PIN de sécurité individuel, et nous supportons également la biométrie
+WebAuthn (empreinte digitale ou clé de sécurité). On valide, et nous voici sur le
+tableau de bord principal."
+
+================================================================================
+3. ÉTAPE 2 : DASHBOARD DÉCISIONNEL & ERGONOMIE (1 MINUTE 30)
+================================================================================
+[ACTION À L'ÉCRAN] :
+- Balayez du regard le Dashboard.
+- Pointez successivement les cartes Bento clés.
+
+[CE QUE TU DIS MOT À MOT :]
+"Voici le tableau de bord de la DSI. J'ai conçu cette vue sous forme de Bento Grid
+pour que vous ayez en un seul coup d'œil l'ensemble des indicateurs stratégiques de GTAC2A :
+- Ici, le nombre total d'équipements en parc et en stock.
+- La valeur financière globale du parc informatique calculée en direct en FCFA.
+- Le taux d'attribution actuel du matériel.
+- Et surtout, une alerte préventive sur la vétusté : le système isole automatiquement
+  les équipements de plus de 3 ans et de plus de 5 ans pour vous aider à préparer
+  les budgets d'investissement N+1.
+- Enfin, les tickets de maintenance ouverts pour savoir quelles machines sont
+  actuellement immobilisées."
+
+[ACTION À L'ÉCRAN] :
+- Cliquez sur l'interrupteur Thème Sombre / Thème Clair en haut à droite.
+- Appuyez sur la touche '?' du clavier pour afficher la modale d'aide aux raccourcis.
+
+[CE QUE TU DIS MOT À MOT :]
+"Sur le plan ergonomique, l'interface supporte un thème sombre reposant pour les
+yeux et un thème clair parfaitement lisible aux couleurs officielles de GTAC2A.
+Et pour gagner du temps au quotidien sans la souris, j'ai implémenté des raccourcis
+clavier complets : par exemple, en appuyant sur '?', cette fenêtre d'aide s'ouvre
+avec toutes les touches d'accès rapide."
+
+================================================================================
+4. ÉTAPE 3 : INVENTAIRE DES ÉQUIPEMENTS & RECHERCHE INSTANTANÉE (2 MINUTES)
+================================================================================
+[ACTION À L'ÉCRAN] :
+- Appuyez sur la touche 'E' du clavier (ou cliquez sur 'Équipements' dans le menu).
+- Vous arrivez sur la liste des équipements.
+
+[CE QUE TU DIS MOT À MOT :]
+"En appuyant simplement sur la touche 'E', nous arrivons sur le cœur de l'inventaire.
+
+Ici sont répertoriés tous les équipements de GTAC2A : ordinateurs fixes, laptops,
+écrans, imprimantes réseau et serveurs.
+
+Remarquez la clarté des données : les systèmes d'exploitation ont été standardisés
+(ex: 'Windows 11', 'Windows 10', 'Ubuntu') sans mentions superflues pour garder une
+base de données totalement propre et exploitable."
+
+[ACTION À L'ÉCRAN] :
+- Appuyez sur la touche 'K' (ou cliquez sur la barre de recherche rapide).
+- Tapez par exemple 'HP' ou 'Dell' ou 'Compta'.
+- Montrez que le tableau filtre instantanément sans rechargement de page.
+- Testez un filtre par catégorie ou statut (ex: 'En service', 'En panne').
+
+[CE QUE TU DIS MOT À MOT :]
+"Grâce à Symfony UX Turbo et à notre moteur de recherche rapide, le filtrage est
+instantané : si vous cherchez une machine par numéro de série, par marque, par
+adresse IP ou par utilisateur, le résultat s'affiche en une fraction de seconde,
+sans rechargement lourd de la page."
+
+[ACTION À L'ÉCRAN] :
+- Cliquez sur une ligne d'équipement pour ouvrir sa fiche détaillée.
+
+[CE QUE TU DIS MOT À MOT :]
+"Sur la fiche de l'équipement, nous avons sa carte d'identité complète :
+processeur, mémoire RAM, stockage, adresse MAC, adresse IP réseau, la liste des
+composants installés et l'historique complet de toutes ses attributions passées."
+
+================================================================================
+5. ÉTAPE 4 : GESTION DU PERSONNEL & DOTATIONS EN ACCORDÉON (1 MINUTE 30)
+================================================================================
+[ACTION À L'ÉCRAN] :
+- Appuyez sur la touche 'O' du clavier (raccourci Personnel).
+- Vous arrivez sur la liste du personnel de GTAC2A.
+
+[CE QUE TU DIS MOT À MOT :]
+"Passons maintenant au module Personnel en appuyant sur la touche 'O'.
+
+C'était une demande forte de la DSI : répondre immédiatement à la question
+'Qui a quoi comme matériel ?'
+
+Au lieu d'ouvrir plusieurs pages ou de chercher dans des fichiers croisés,
+j'ai mis en place un système de cartes interactives en accordéon."
+
+[ACTION À L'ÉCRAN] :
+- Cliquez sur la ligne d'un collaborateur (ex: un agent ayant du matériel).
+- La ligne se déplie avec animation, révélant les badges des équipements attribués.
+
+[CE QUE TU DIS MOT À MOT :]
+"Regardez : il suffit de cliquer sur un agent, et la ligne se déroule instantanément.
+On voit immédiatement son ordinateur portable, son écran de bureau et ses accessoires.
+Et si cet agent change de poste ou quitte l'entreprise, le bouton d'action directe
+ici permet de retirer le matériel en un seul clic, avec mise à jour immédiate
+du stock."
+
+================================================================================
+6. ÉTAPE 5 : DÉMONSTRATION DU CYCLE DE VIE EN DIRECT (ACTION "LIVE") (2 MINUTES)
+================================================================================
+[ACTION À L'ÉCRAN] :
+- Appuyez sur la touche 'A' (Attributions) ou cliquez sur le bouton d'action rapide FAB
+  orange en bas à droite -> 'Attribuer un équipement'.
+
+[CE QUE TU DIS MOT À MOT :]
+"Pour vous prouver que tout le cycle de vie fonctionne parfaitement de bout en bout,
+faisons une attribution en direct sous vos yeux."
+
+[ACTION À L'ÉCRAN] :
+- Choisissez un équipement actuellement disponible en stock dans la liste déroulante.
+- Choisissez un collaborateur bénéficiaire.
+- Indiquez un lieu (ex: Siège - Direction Financière).
+- Cliquez sur 'Valider l'attribution'.
+- Montrez le message toast vert de confirmation.
+
+[CE QUE TU DIS MOT À MOT :]
+"Voilà, l'attribution est enregistrée.
+Que s'est-il passé en coulisses ?
+1. Le statut de l'équipement est passé automatiquement de 'EN STOCK' à 'ATTRIBUÉ'.
+2. La machine est désormais liée à l'agent dans sa fiche personnelle.
+3. L'événement a été horodaté et gravé dans le journal d'audit avec mon identifiant
+   d'opérateur et mon adresse IP."
+
+[ACTION À L'ÉCRAN] :
+- Cliquez sur le bouton 'Restituer le matériel' (ou retour en stock).
+- Validez la restitution.
+
+[CE QUE TU DIS MOT À MOT :]
+"Et lors de la restitution du matériel, un clic suffit : la date de fin est posée,
+et la machine repasse automatiquement en statut disponible pour une future affectation.
+Aucune erreur humaine de double attribution n'est possible."
+
+================================================================================
+7. ÉTAPE 6 : GESTION DES PANNES & COÛTS DE MAINTENANCE (1 MINUTE)
+================================================================================
+[ACTION À L'ÉCRAN] :
+- Appuyez sur la touche 'M' du clavier (Maintenances).
+- Montrez la liste des fiches de maintenance.
+
+[CE QUE TU DIS MOT À MOT :]
+"Voici le module de Maintenance (touche 'M').
+
+Ce module permet à la DSI de professionnaliser le SAV :
+- On enregistre la panne (ex: écran noir, disque dur défaillant, bloc d'alimentation).
+- On suit l'état : En cours, En attente de pièce, ou Résolu.
+- On enregistre le technicien et surtout le COÛT financier de la réparation.
+
+Grâce à cela, nous pouvons savoir combien une machine a coûté en réparations
+depuis son achat, et décider s'il est plus économique de la remplacer que de continuer
+à la réparer."
+
+================================================================================
+8. ÉTAPE 7 : CENTRE DE RAPPORTS & BILAN GLOBAL EXCEL (1 MINUTE 30)
+================================================================================
+[ACTION À L'ÉCRAN] :
+- Appuyez sur la touche 'R' (Rapports).
+- Vous êtes sur la page des rapports.
+- Pointez la section 'Bilan Global du Parc'.
+- Sélectionnez un filtre si vous voulez (ou laissez tout coché).
+- Cliquez sur le bouton vert 'Exporter vers Excel'.
+- Le fichier se télécharge immédiatement.
+- Ouvrez le fichier Excel téléchargé si possible pour le montrer 5 secondes.
+
+[CE QUE TU DIS MOT À MOT :]
+"Voici le Centre de Rapports (touche 'R').
+
+C'est l'outil qui va vous faire gagner un temps précieux lors des inventaires
+et des clôtures annuelles.
+Nous avons développé un générateur de Bilan Global conforme aux exigences de
+GTAC2A. On peut filtrer par catégorie, par localisation ou par statut.
+
+En un clic sur 'Exporter', le système génère un classeur Excel complet, mis en forme
+avec les en-têtes officiels de GTAC2A, prêt à être transmis au Directeur Administratif
+et Financier ou aux commissaires aux comptes."
+
+================================================================================
+9. ÉTAPE 8 : SÉCURITÉ, RATE LIMITING & AUDIT CRYPTOGRAPHIQUE (2 MINUTES)
+================================================================================
+[ACTION À L'ÉCRAN] :
+- Appuyez sur la touche 'J' (Journal d'Audit).
+- Montrez le tableau de traçabilité.
+
+[CE QUE TU DIS MOT À MOT :]
+"Pour terminer, je souhaite attirer votre attention sur l'aspect gouvernance et
+sécurité dans le Journal d'Audit (touche 'J').
+
+Dans une compagnie d'assurance, la traçabilité est capitale. Chaque action effectuée
+dans G-PARC — que ce soit une connexion, une modification d'équipement, une attribution
+ou une suppression — est rigoureusement consignée avec :
+- L'horodatage précis à la seconde,
+- L'utilisateur connecté,
+- L'adresse IP exacte,
+- Et le détail avant/après de la modification."
+
+[ACTION À L'ÉCRAN] :
+- Pointez du curseur la colonne avec les empreintes / Hashs.
+- Cliquez sur le bouton 'Contrôle d'intégrité' en haut.
+
+[CE QUE TU DIS MOT À MOT :]
+"Mais nous sommes allés plus loin : pour garantir que personne — pas même un
+administrateur en base de données — ne puisse falsifier les logs, chaque enregistrement
+contient une empreinte cryptographique SHA-256 chaînée à l'enregistrement précédent,
+selon le principe de la blockchain.
+
+Si je clique ici sur 'Contrôle d'intégrité' : le système recalcule toute la chaîne.
+Elle est validée à 100%, ce qui prouve l'authenticité juridique de nos journaux.
+
+Enfin, pour la sécurité réseau, notre nouveau module de Rate Limiting protège
+l'application contre tout déni de service (DoS) : au-delà de 120 requêtes par minute
+sur une même IP, le trafic malveillant est bloqué net en amont sans impacter le serveur."
+
+[ACTION RAPIDE SAUVEGARDE] :
+- Allez dans le menu Sauvegarde (touche 'B').
+- Montrez le bouton 'Créer une sauvegarde immédiate' en 1 clic.
+
+[CE QUE TU DIS MOT À MOT :]
+"Et en cas de besoin de Plan de Reprise d'Activité (PRA), l'onglet Sauvegarde permet
+à la DSI d'archiver la base de données SQLite en un seul clic."
+
+================================================================================
+10. CONCLUSION & PASSAGE DE LA PAROLE AU MAÎTRE DE STAGE (1 MINUTE)
+================================================================================
+[ACTION] :
+- Revenez sur le Dashboard (touche 'D').
+- Posez les mains, souriez et regardez votre maître de stage.
+
+[CE QUE TU DIS MOT À MOT :]
+"Voilà, Monsieur, le tour complet de l'application G-PARC.
+
+Pour récapituler ce que ce projet apporte à la DSI de GTAC2A :
+1. Une centralisation totale : fini les fichiers Excel éparpillés.
+2. Un contrôle absolu des dotations avec la vue accordéon du personnel.
+3. Des indicateurs financiers précis pour vos prises de décision budgétaires.
+4. Une sécurité renforcée : filtrage IP, 2FA, protection anti-DoS et audit scellé.
+5. Une solution légère, rapide et déployable instantanément grâce à FrankenPHP et Symfony 8.
+
+J'ai pris beaucoup de plaisir à réaliser ce projet sous votre direction, et je suis
+maintenant à votre écoute pour recueillir vos remarques, vos conseils et répondre
+à vos questions."
+
+================================================================================
+11. GUIDE DE RÉPONSE AUX QUESTIONS PROBABLES DU MAÎTRE DE STAGE
+================================================================================
+
+--- QUESTION 1 : "Est-ce que l'application est prête à être mise en production sur nos serveurs ?"
+[TA RÉPONSE :]
+"Oui, tout à fait. L'application tourne actuellement en environnement de production
+(env=prod avec cache préchauffé et debug désactivé). La stack FrankenPHP permet de
+lancer le serveur de manière complètement autonome en une seule commande, sans avoir
+besoin de configurer un Apache lourd ou un Nginx complexe. La base SQLite est déjà
+opérationnelle et peut être sauvegardée chaque nuit par un simple script de copie."
+
+--- QUESTION 2 : "Que se passe-t-il si un utilisateur essaie d'attribuer une machine déjà en panne ou en réparation ?"
+[TA RÉPONSE :]
+"Le système applique une validation stricte : seuls les équipements dont le statut est
+strictement 'EN STOCK' peuvent être sélectionnés pour une attribution. Une machine
+marquée 'EN PANNE' ou 'EN SERVICE' est automatiquement filtrée pour empêcher toute
+anomalie de gestion."
+
+--- QUESTION 3 : "Pourquoi avoir choisi Symfony et pas un autre framework ou du PHP pur ?"
+[TA RÉPONSE :]
+"Symfony 8 est le standard d'ingénierie le plus réputé pour les applications métier
+d'entreprise. Il intègre nativement la sécurité, le système de rôles (ROLE_ADMIN,
+ROLE_SUPER_ADMIN), le composant de validation des formulaires et l'ORM Doctrine.
+De plus, son architecture MVC et autowiring garantit qu'un autre développeur de la
+DSI pourra reprendre et maintenir le code très facilement après mon départ."
+
+--- QUESTION 4 : "Et si la compagnie grandit avec 200 utilisateurs connectés en même temps, est-ce que SQLite tiendra ?"
+[TA RÉPONSE :]
+"Pour notre usage actuel DSI (5 à 20 personnes), SQLite est ultra-rapide et ne consomme
+presque rien. Si demain GTAC2A souhaite ouvrir l'outil à tous les collaborateurs pour
+qu'ils fassent des demandes en ligne (avec des dizaines d'écritures simultanées),
+grâce à Doctrine ORM, il suffira de changer une seule ligne dans le fichier .env
+pour basculer sur un moteur PostgreSQL ou MariaDB, sans toucher à une seule ligne
+de code PHP."
+
+--- QUESTION 5 : "Combien de temps t'a pris la mise en place de ces fonctionnalités ?"
+[TA RÉPONSE :]
+"J'ai structuré le travail par sprints itératifs tout au long du stage : d'abord le
+cœur métier et la base de données relationnelle, ensuite les modules de sécurité et
+d'authentification, puis les perfectionnements ergonomiques (recherche instantanée,
+accordéons, dark mode, raccourcis clavier) et enfin les durcissements de sécurité
+(protection anti-DoS et scellement d'audit SHA-256)."
+
+================================================================================
+MÉMO DES TOUCHES RAPIDES POUR LA DÉMO :
+? = Aide raccourcis  |  D = Dashboard  |  E = Équipements  |  O = Personnel
+A = Attributions     |  M = Maintenances |  R = Rapports   |  J = Journal Audit
+K = Recherche        |  B = Sauvegardes
+================================================================================
+
+--- QUESTION 2 : "Que se passe-t-il si un utilisateur essaie d'attribuer une machine déjà en panne ou en réparation ?"
+[TA RÉPONSE :]
+"Le système applique une validation stricte : seuls les équipements dont le statut est
+strictement 'EN STOCK' peuvent être sélectionnés pour une attribution. Une machine
+marquée 'EN PANNE' ou 'EN SERVICE' est automatiquement filtrée pour empêcher toute
+anomalie de gestion."
+
+--- QUESTION 3 : "Pourquoi avoir choisi Symfony et pas un autre framework ou du PHP pur ?"
+[TA RÉPONSE :]
+"Symfony 8 est le standard d'ingénierie le plus réputé pour les applications métier
+d'entreprise. Il intègre nativement la sécurité, le système de rôles (ROLE_ADMIN,
+ROLE_SUPER_ADMIN), le composant de validation des formulaires et l'ORM Doctrine.
+De plus, son architecture MVC et autowiring garantit qu'un autre développeur de la
+DSI pourra reprendre et maintenir le code très facilement après mon départ."
+
+--- QUESTION 4 : "Et si la compagnie grandit avec 200 utilisateurs connectés en même temps, est-ce que SQLite tiendra ?"
+[TA RÉPONSE :]
+"Pour notre usage actuel DSI (5 à 20 personnes), SQLite est ultra-rapide et ne consomme
+presque rien. Si demain GTAC2A souhaite ouvrir l'outil à tous les collaborateurs pour
+qu'ils fassent des demandes en ligne (avec des dizaines d'écritures simultanées),
+grâce à Doctrine ORM, il suffira de changer une seule ligne dans le fichier .env
+pour basculer sur un moteur PostgreSQL ou MariaDB, sans toucher à une seule ligne
+de code PHP."
+
+--- QUESTION 5 : "Combien de temps t'a pris la mise en place de ces fonctionnalités ?"
+[TA RÉPONSE :]
+"J'ai structuré le travail par sprints itératifs tout au long du stage : d'abord le
+cœur métier et la base de données relationnelle, ensuite les modules de sécurité et
+d'authentification, puis les perfectionnements ergonomiques (recherche instantanée,
+accordéons, dark mode, raccourcis clavier) et enfin les durcissements de sécurité
+(protection anti-DoS et scellement d'audit SHA-256)."
+
+================================================================================
+MÉMO DES TOUCHES RAPIDES POUR LA DÉMO :
+? = Aide raccourcis  |  D = Dashboard  |  E = Équipements  |  O = Personnel
+A = Attributions     |  M = Maintenances |  R = Rapports   |  J = Journal Audit
+K = Recherche        |  B = Sauvegardes
+================================================================================
+

@@ -1,0 +1,916 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Inventaire des Équipements | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-2 flex-shrink-0">
+    <div>
+        <h1 class="h3 fw-bold mb-1" style="color: #121212;">Inventaire des Équipements</h1>
+        <p class="text-muted mb-0 small">Inventaire et gestion du parc informatique</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ path('app_equipement_new') }}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" data-shortcut="n" title="Raccourci : N">
+            <i class="bi bi-plus-lg"></i>
+            <span>Nouvel Équipement</span>
+        </a>
+    </div>
+</div>
+
+{# Badge lieu actif — affiché uniquement si on filtre par lieu #}
+{% if current_lieu %}
+<div class="mb-2 flex-shrink-0">
+    <span class="badge rounded-pill bg-dark text-white px-3 py-2 d-inline-flex align-items-center gap-2" style="font-size: 0.8rem;">
+        <i class="bi bi-geo-alt-fill text-warning"></i>
+        Emplacement : <strong>{{ current_lieu.nomLieu }}</strong>
+        <a href="{{ path('app_equipement_index') }}" class="text-white text-opacity-75 ms-1" title="Retirer ce filtre" style="line-height:1;">
+            <i class="bi bi-x-lg" style="font-size: 0.7rem;"></i>
+        </a>
+    </span>
+    <span class="text-muted small ms-2">{{ equipements|length }} équipement(s) dans cet emplacement</span>
+</div>
+{% endif %}
+
+{# Barre de Recherche et Filtres (Fixe) #}
+<div class="card mb-3 flex-shrink-0">
+    <div class="card-body p-2 px-3">
+        <form method="get" class="row g-2 align-items-center">
+            {% if current_lieu %}
+                <input type="hidden" name="lieu" value="{{ current_lieu.id }}">
+            {% endif %}
+            <div class="col-12 col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" value="{{ current_search }}" class="form-control bg-light border-start-0" placeholder="Rechercher par nom, bénéficiaire, S/N, IP, marque..." data-shortcut="/">
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <select name="categorie" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- Toutes les catégories --</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if current_cat == cat.id %}selected{% endif %}>{{ cat.nomCat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <select name="statut" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- Tous les statuts --</option>
+                    <option value="En service" {% if current_statut == 'En service' %}selected{% endif %}>En service</option>
+                    <option value="En stock" {% if current_statut == 'En stock' %}selected{% endif %}>En stock</option>
+                    <option value="En panne" {% if current_statut == 'En panne' %}selected{% endif %}>En panne</option>
+                    <option value="Prêté" {% if current_statut == 'Prêté' %}selected{% endif %}>Prêté</option>
+                    <option value="Au rebut" {% if current_statut == 'Au rebut' %}selected{% endif %}>Au rebut</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-dark btn-sm flex-grow-1">Filtrer</button>
+                {% if current_search or current_cat or current_statut or current_lieu %}
+                    <a href="{{ path('app_equipement_index') }}" class="btn btn-outline-secondary btn-sm" title="Réinitialiser filtres">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    /* Styling for the Bulk Action Modal & suggestions */
+    .bulk-field-card {
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        background: #ffffff;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .bulk-field-card.active-field {
+        border-color: #E47000 !important;
+        box-shadow: 0 4px 14px rgba(228, 112, 0, 0.15) !important;
+        background: #FFFDFB;
+    }
+    .bulk-field-body {
+        transition: background-color 0.2s ease;
+    }
+
+    /* Status buttons in bulk modal */
+    .status-btn-opt {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 15px;
+        border-radius: 20px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #475569;
+        transition: all 0.15s ease-in-out;
+        cursor: pointer;
+    }
+    .status-btn-opt:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+        transform: translateY(-1px);
+    }
+    .status-btn-opt.active {
+        background: #181c24 !important;
+        border-color: #181c24 !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+    }
+    .status-btn-opt.active i {
+        color: #ffffff !important;
+    }
+
+    /* OS chips in bulk modal */
+    .os-bulk-chip {
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 5px 12px;
+        font-size: 0.76rem;
+        font-weight: 500;
+        color: #475569;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease-in-out;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .os-bulk-chip:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+        color: #1e293b;
+        transform: translateY(-1px);
+    }
+    .os-bulk-chip.active {
+        background: #FFF7ED !important;
+        border-color: #E47000 !important;
+        color: #9A3412 !important;
+        font-weight: 600 !important;
+        box-shadow: 0 2px 6px rgba(228, 112, 0, 0.2) !important;
+    }
+
+    /* Checkbox cell */
+    .checkbox-cell {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    /* Dark Mode overrides for Bulk Action elements */
+    [data-bs-theme="dark"] .bulk-field-card {
+        background: #191d28;
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+    [data-bs-theme="dark"] .bulk-field-card.active-field {
+        background: #202636 !important;
+        border-color: var(--gta-orange) !important;
+        box-shadow: 0 4px 14px rgba(228, 112, 0, 0.25) !important;
+    }
+    [data-bs-theme="dark"] .status-btn-opt {
+        background: #151822;
+        border-color: rgba(255, 255, 255, 0.12);
+        color: #cbd5e1;
+    }
+    [data-bs-theme="dark"] .status-btn-opt:hover {
+        background: #232838;
+        color: #ffffff;
+    }
+    [data-bs-theme="dark"] .status-btn-opt.active {
+        background: var(--gta-orange) !important;
+        border-color: var(--gta-orange) !important;
+        color: #ffffff !important;
+    }
+    [data-bs-theme="dark"] .os-bulk-chip {
+        background: #151822;
+        border-color: rgba(255, 255, 255, 0.12);
+        color: #cbd5e1;
+    }
+    [data-bs-theme="dark"] .os-bulk-chip:hover {
+        background: #232838;
+        color: #ffffff;
+    }
+    [data-bs-theme="dark"] .os-bulk-chip.active {
+        background: rgba(228, 112, 0, 0.22) !important;
+        border-color: var(--gta-orange) !important;
+        color: #ff9d3b !important;
+    }
+</style>
+
+{# Formulaire et Barre d'Actions Groupées #}
+<form id="bulkActionForm" method="post" action="{{ path('app_equipement_bulk_action') }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('equipement_bulk_action') }}">
+    <input type="hidden" name="bulk_action" id="bulkActionInput" value="modify">
+
+    {# Barre flottante contextuelle d'actions groupées #}
+    <div id="bulkActionBar" class="card mb-3 border-0 shadow-sm d-none" style="background: linear-gradient(90deg, #181c24 0%, #222733 100%); color: #fff; border-radius: 12px; border-left: 4px solid var(--gta-orange) !important;">
+        <div class="card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-warning text-dark fs-6 px-3 py-2 fw-bold" id="bulkCountBadge">0</span>
+                <span class="fw-semibold">équipement(s) sélectionné(s) au total</span>
+                <span class="small text-white-50" id="bulkVisibleCountBadge"></span>
+                <button type="button" class="btn btn-sm btn-link text-white-50 p-0 ms-2 text-decoration-none" onclick="deselectAllEquipements()">
+                    <i class="bi bi-x-circle me-1"></i>Tout désélectionner
+                </button>
+            </div>
+
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                {# Bouton principal d'édition sélective #}
+                <button type="button" class="btn btn-sm btn-warning text-dark fw-bold d-flex align-items-center gap-2 shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#bulkModifyModal">
+                    <i class="bi bi-pencil-square"></i>
+                    <span>Modifier la sélection</span>
+                </button>
+
+                {% if is_granted('ROLE_SUPER_ADMIN') %}
+                    {# Supprimer la sélection #}
+                    <button type="button" class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1" onclick="confirmBulkDelete()">
+                        <i class="bi bi-trash3"></i>
+                        <span>Supprimer la sélection</span>
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Tableau des Équipements dans son conteneur indépendant à défilement #}
+    <div class="card flex-grow-1">
+        <div class="scroll-table-container">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light small">
+                    <tr>
+                        <th style="width: 38px;" class="text-center">
+                            <input type="checkbox" id="checkAllEquipements" class="form-check-input" onchange="toggleAllBulk(this.checked)" title="Tout cocher / décocher">
+                        </th>
+                        <th>Désignation & Modèle</th>
+                        <th>N° Série / Tag</th>
+                        <th>Catégorie</th>
+                        <th>Emplacement</th>
+                        <th>Statut</th>
+                        <th>Garantie</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eq in equipements %}
+                        <tr data-shortcuts-target="row">
+                            <td class="text-center checkbox-cell" style="width: 38px;" onclick="handleCellClick(this, event)">
+                                <input type="checkbox" name="ids[]" value="{{ eq.id }}" class="form-check-input bulk-eq-checkbox" style="cursor: pointer;">
+                            </td>
+                            <td>
+                                <a href="{{ path('app_equipement_show', {'id': eq.id}) }}" class="fw-bold text-dark text-decoration-none">
+                                {{ eq.nom }}
+                            </a>
+                            <div class="small text-muted">{{ eq.marque }} &bull; {{ eq.modele }}</div>
+                            {% set activeAtt = attribution_map[eq.id] ?? null %}
+                            {% if activeAtt %}
+                                <div class="small mt-1 text-primary fw-medium" title="Machine actuellement attribuée">
+                                    <i class="bi bi-person-fill me-1"></i>
+                                    <span>{{ activeAtt.beneficiaireNom }}</span>
+                                    {% if activeAtt.beneficiaireService %}
+                                        <span class="text-secondary" style="font-size: 0.72rem;">({{ activeAtt.beneficiaireService }})</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                            {% if eq.isObsolete %}
+                                <span class="badge badge-age-obsolete mt-1" style="font-size: 0.7rem;">
+                                    <i class="bi bi-exclamation-octagon-fill me-1"></i>{{ eq.ageAnnees }} ans (Obsolète)
+                                </span>
+                            {% elseif eq.isVieillissant %}
+                                <span class="badge badge-age-warning mt-1" style="font-size: 0.7rem;">
+                                    <i class="bi bi-clock-history me-1"></i>{{ eq.ageAnnees }} ans (Vieillissant)
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border font-monospace">{{ eq.numeroSerie ? eq.numeroSerie : 'S/N non renseigné' }}</span>
+                            {% if eq.tagInventaire %}
+                                <div class="small text-muted font-monospace mt-1">{{ eq.tagInventaire }}</div>
+                            {% endif %}
+                            {% if eq.adresseIp %}
+                                <div class="small text-success font-monospace mt-1"><i class="bi bi-broadcast me-1"></i>{{ eq.adresseIp }}</div>
+                            {% endif %}
+                            {% if eq.systemeExploitation %}
+                                <div class="small text-primary font-monospace mt-1" title="Système d'exploitation"><i class="bi bi-window me-1"></i>{{ eq.systemeExploitation }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if eq.categorie %}
+                                <span class="badge bg-light text-secondary border">{{ eq.categorie.nomCat }}</span>
+                            {% else %}
+                                <span class="text-muted small">Non classé</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if eq.lieu %}
+                                <span class="small"><i class="bi bi-geo-alt me-1 text-primary"></i>{{ eq.lieu.nomLieu }}</span>
+                            {% else %}
+                                <span class="text-muted small">Non assigné</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if eq.statut == 'En service' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-check-circle me-1"></i>En service
+                                </span>
+                            {% elseif eq.statut == 'En stock' %}
+                                <span class="badge bg-secondary-subtle text-dark border">
+                                    <i class="bi bi-box-seam me-1"></i>En stock
+                                </span>
+                            {% elseif eq.statut == 'En panne' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>En panne
+                                </span>
+                            {% elseif eq.statut == 'Prêté' %}
+                                <span class="badge bg-warning-subtle text-dark border">
+                                    <i class="bi bi-arrow-left-right me-1"></i>Prêté
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">{{ eq.statut }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if eq.finGarantie %}
+                                {% if eq.finGarantie|date('Y-m-d') < 'now'|date('Y-m-d') %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle small" title="Expirée le {{ eq.finGarantie|date('d/m/Y') }}">
+                                        Expirée ({{ eq.finGarantie|date('d/m/Y') }})
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle small" title="Valide jusqu'au {{ eq.finGarantie|date('d/m/Y') }}">
+                                        Jusqu'au {{ eq.finGarantie|date('d/m/Y') }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted small">N/C</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ path('app_equipement_show', {'id': eq.id}) }}" class="btn btn-outline-secondary" title="Consulter la fiche">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ path('app_equipement_edit', {'id': eq.id}) }}" class="btn btn-outline-secondary" title="Modifier" data-shortcut="m">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{{ path('app_attribution_new', {'equipement_id': eq.id}) }}" class="btn btn-outline-dark" title="Attribuer">
+                                    <i class="bi bi-person-plus"></i>
+                                </a>
+                                {% set eqWarning = '' %}
+                                {% if eq.statut == 'En service' or eq.statut == 'Prêté' %}
+                                    {% set eqWarning = '⚠️ Cet équipement est actuellement ' ~ eq.statut ~ '. Sa suppression va rompre l\'historique d\'affectation et dissocier les fiches actives du parc !' %}
+                                {% endif %}
+                                <button type="button" 
+                                        class="btn btn-outline-danger" 
+                                        title="Supprimer cet équipement"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#gtaDeleteModal"
+                                        data-delete-url="{{ path('app_equipement_delete', {'id': eq.id}) }}"
+                                        data-item-name="{{ eq.nom }} (S/N: {{ eq.numeroSerie }})"
+                                        data-token="{{ csrf_token('delete' ~ eq.id) }}"
+                                        data-scandal-count="{{ eqWarning ? 1 : 0 }}"
+                                        data-danger-warning="{{ eqWarning }}"
+                                        data-shortcut="s">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5">
+                            <i class="bi bi-inbox text-muted fs-1 d-block mb-2"></i>
+                            <h6 class="fw-bold text-dark">Aucun équipement trouvé</h6>
+                            <p class="text-muted small mb-3">Modifiez vos critères de recherche ou enregistrez un nouvel actif.</p>
+                            <a href="{{ path('app_equipement_new') }}" class="btn btn-primary btn-sm">
+                                <i class="bi bi-plus-lg me-1"></i> Ajouter un équipement
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</form>
+{% endblock %}
+
+{% block modals %}
+{# Modale de Modification Groupée Sélective — Située au niveau racine du document pour éviter tout blocage z-index #}
+<div class="modal fade" id="bulkModifyModal" tabindex="-1" aria-labelledby="bulkModifyModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-bottom py-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: #FFF7ED; color: #E47000;">
+                        <i class="bi bi-sliders2 fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="bulkModifyModalLabel">Modification groupée d'équipements</h5>
+                        <small class="text-muted">Choisissez les champs à modifier — les autres resteront strictement inchangés</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning text-dark px-3 py-2 fw-bold rounded-pill" id="bulkModalCountBadge">0 équipement(s)</span>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+            </div>
+
+            <div class="modal-body p-4">
+                <div class="d-flex flex-column gap-3">
+                    {# 1. STATUT #}
+                    <div class="card bulk-field-card shadow-sm" id="card_modify_statut">
+                        <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between border-bottom">
+                            <div class="form-check form-switch mb-0 d-flex align-items-center gap-2">
+                                <input class="form-check-input bulk-field-toggle" type="checkbox" id="toggle_modify_statut" name="modify_statut" value="1" onchange="toggleBulkFieldSection('statut')">
+                                <label class="form-check-label fw-bold text-dark cursor-pointer" for="toggle_modify_statut">
+                                    <i class="bi bi-arrow-repeat text-primary me-1"></i>Statut
+                                </label>
+                            </div>
+                            <span class="badge bg-light text-muted border bulk-field-badge" id="badge_modify_statut">
+                                <i class="bi bi-dash-circle me-1"></i>Inchangé
+                            </span>
+                        </div>
+                        <div class="card-body p-3 bulk-field-body" id="body_modify_statut">
+                            <label class="form-label small text-muted mb-2">Cliquez sur le statut souhaité :</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="status-btn-opt active" data-status="En service" onclick="selectBulkStatus('En service')">
+                                    <i class="bi bi-check-circle-fill text-success"></i><span>En service</span>
+                                </button>
+                                <button type="button" class="status-btn-opt" data-status="En stock" onclick="selectBulkStatus('En stock')">
+                                    <i class="bi bi-box-seam text-secondary"></i><span>En stock</span>
+                                </button>
+                                <button type="button" class="status-btn-opt" data-status="En panne" onclick="selectBulkStatus('En panne')">
+                                    <i class="bi bi-exclamation-triangle-fill text-danger"></i><span>En panne</span>
+                                </button>
+                                <button type="button" class="status-btn-opt" data-status="Prêté" onclick="selectBulkStatus('Prêté')">
+                                    <i class="bi bi-arrow-left-right text-warning"></i><span>Prêté</span>
+                                </button>
+                                <button type="button" class="status-btn-opt" data-status="Au rebut" onclick="selectBulkStatus('Au rebut')">
+                                    <i class="bi bi-trash-fill text-dark"></i><span>Au rebut</span>
+                                </button>
+                            </div>
+                            <input type="hidden" name="new_statut" id="bulk_new_statut_input" value="En service">
+                        </div>
+                    </div>
+
+                    {# 2. EMPLACEMENT / LIEU #}
+                    <div class="card bulk-field-card shadow-sm" id="card_modify_lieu">
+                        <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between border-bottom">
+                            <div class="form-check form-switch mb-0 d-flex align-items-center gap-2">
+                                <input class="form-check-input bulk-field-toggle" type="checkbox" id="toggle_modify_lieu" name="modify_lieu" value="1" onchange="toggleBulkFieldSection('lieu')">
+                                <label class="form-check-label fw-bold text-dark cursor-pointer" for="toggle_modify_lieu">
+                                    <i class="bi bi-geo-alt text-warning me-1"></i>Emplacement / Localisation
+                                </label>
+                            </div>
+                            <span class="badge bg-light text-muted border bulk-field-badge" id="badge_modify_lieu">
+                                <i class="bi bi-dash-circle me-1"></i>Inchangé
+                            </span>
+                        </div>
+                        <div class="card-body p-3 bulk-field-body" id="body_modify_lieu">
+                            <label for="bulk_new_lieu_id" class="form-label small text-muted mb-1">Sélectionner un emplacement GTA :</label>
+                            <div class="input-group">
+                                <span class="input-group-text text-warning border-end-0"><i class="bi bi-geo-alt-fill"></i></span>
+                                <select name="new_lieu_id" id="bulk_new_lieu_id" class="form-select border-start-0" onchange="activateBulkField('lieu')" onfocus="activateBulkField('lieu')">
+                                    <option value="0">-- Non assigné (Aucun emplacement) --</option>
+                                    {% for l in all_lieux|default([]) %}
+                                        <option value="{{ l.id }}">{{ l.nomLieu }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# 3. CATEGORIE #}
+                    <div class="card bulk-field-card shadow-sm" id="card_modify_categorie">
+                        <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between border-bottom">
+                            <div class="form-check form-switch mb-0 d-flex align-items-center gap-2">
+                                <input class="form-check-input bulk-field-toggle" type="checkbox" id="toggle_modify_categorie" name="modify_categorie" value="1" onchange="toggleBulkFieldSection('categorie')">
+                                <label class="form-check-label fw-bold text-dark cursor-pointer" for="toggle_modify_categorie">
+                                    <i class="bi bi-tags text-success me-1"></i>Catégorie d'équipement
+                                </label>
+                            </div>
+                            <span class="badge bg-light text-muted border bulk-field-badge" id="badge_modify_categorie">
+                                <i class="bi bi-dash-circle me-1"></i>Inchangé
+                            </span>
+                        </div>
+                        <div class="card-body p-3 bulk-field-body" id="body_modify_categorie">
+                            <label for="bulk_new_cat_id" class="form-label small text-muted mb-1">Sélectionner une catégorie GTA :</label>
+                            <div class="input-group">
+                                <span class="input-group-text text-success border-end-0"><i class="bi bi-tag-fill"></i></span>
+                                <select name="new_cat_id" id="bulk_new_cat_id" class="form-select border-start-0" onchange="activateBulkField('categorie')" onfocus="activateBulkField('categorie')">
+                                    <option value="0">-- Non classé --</option>
+                                    {% for c in categories|default([]) %}
+                                        <option value="{{ c.id }}">{{ c.nomCat }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# 4. SYSTEME D'EXPLOITATION (OS) #}
+                    <div class="card bulk-field-card shadow-sm" id="card_modify_os">
+                        <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between border-bottom">
+                            <div class="form-check form-switch mb-0 d-flex align-items-center gap-2">
+                                <input class="form-check-input bulk-field-toggle" type="checkbox" id="toggle_modify_os" name="modify_os" value="1" onchange="toggleBulkFieldSection('os')">
+                                <label class="form-check-label fw-bold text-dark cursor-pointer" for="toggle_modify_os">
+                                    <i class="bi bi-window-desktop text-primary me-1"></i>Système d'exploitation (OS)
+                                </label>
+                            </div>
+                            <span class="badge bg-light text-muted border bulk-field-badge" id="badge_modify_os">
+                                <i class="bi bi-dash-circle me-1"></i>Inchangé
+                            </span>
+                        </div>
+                        <div class="card-body p-3 bulk-field-body" id="body_modify_os">
+                            <label for="bulk_new_os_input" class="form-label small text-muted mb-1">Saisie libre ou clic sur une suggestion :</label>
+                            <div class="input-group mb-2">
+                                <span class="input-group-text text-muted border-end-0"><i class="bi bi-window"></i></span>
+                                <input type="text" name="new_os" id="bulk_new_os_input" class="form-control border-start-0 border-end-0" placeholder="Ex: Windows 11 Pro, Ubuntu 24.04..." oninput="syncBulkOsChips(this.value.trim()); activateBulkField('os');" onfocus="activateBulkField('os')">
+                                <button type="button" class="btn btn-outline-secondary border-start-0" onclick="clearBulkOsInput()" title="Vider le champ">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+
+                            {# Suggestions Chips stylisées #}
+                            <div class="mt-2">
+                                <div class="text-muted small mb-1" style="font-size: 0.72rem; font-weight: 500;">
+                                    <i class="bi bi-magic text-warning me-1"></i>Suggestions standards GTA :
+                                </div>
+                                <div class="d-flex flex-wrap gap-1" id="bulk-os-chips">
+                                    <button type="button" class="os-bulk-chip" data-os="Windows 11" onclick="setBulkOs('Windows 11')">
+                                        <i class="bi bi-windows text-primary"></i><span>Windows 11</span>
+                                    </button>
+                                    <button type="button" class="os-bulk-chip" data-os="Windows 10" onclick="setBulkOs('Windows 10')">
+                                        <i class="bi bi-windows text-info"></i><span>Windows 10</span>
+                                    </button>
+                                    <button type="button" class="os-bulk-chip" data-os="Windows Server 2022" onclick="setBulkOs('Windows Server 2022')">
+                                        <i class="bi bi-hdd-network text-warning"></i><span>Win Server 2022</span>
+                                    </button>
+                                    <button type="button" class="os-bulk-chip" data-os="Ubuntu 24.04 LTS" onclick="setBulkOs('Ubuntu 24.04 LTS')">
+                                        <i class="bi bi-ubuntu text-danger"></i><span>Ubuntu 24.04</span>
+                                    </button>
+                                    <button type="button" class="os-bulk-chip" data-os="Debian 12" onclick="setBulkOs('Debian 12')">
+                                        <i class="bi bi-terminal text-danger"></i><span>Debian 12</span>
+                                    </button>
+                                    <button type="button" class="os-bulk-chip" data-os="macOS Sonoma" onclick="setBulkOs('macOS Sonoma')">
+                                        <i class="bi bi-apple text-dark"></i><span>macOS</span>
+                                    </button>
+                                    <button type="button" class="os-bulk-chip" data-os="VMware ESXi 8.0" onclick="setBulkOs('VMware ESXi 8.0')">
+                                        <i class="bi bi-cpu text-success"></i><span>ESXi / Proxmox</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# 5. NOTES #}
+                    <div class="card bulk-field-card shadow-sm" id="card_modify_notes">
+                        <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between border-bottom">
+                            <div class="form-check form-switch mb-0 d-flex align-items-center gap-2">
+                                <input class="form-check-input bulk-field-toggle" type="checkbox" id="toggle_modify_notes" name="modify_notes" value="1" onchange="toggleBulkFieldSection('notes')">
+                                <label class="form-check-label fw-bold text-dark cursor-pointer" for="toggle_modify_notes">
+                                    <i class="bi bi-chat-left-text text-secondary me-1"></i>Notes & Remarques
+                                </label>
+                            </div>
+                            <span class="badge bg-light text-muted border bulk-field-badge" id="badge_modify_notes">
+                                <i class="bi bi-dash-circle me-1"></i>Inchangé
+                            </span>
+                        </div>
+                        <div class="card-body p-3 bulk-field-body" id="body_modify_notes">
+                            <div class="mb-2">
+                                <textarea name="new_notes" id="bulk_new_notes" class="form-control" rows="2" placeholder="Ajouter un commentaire ou une remarque interne..." oninput="activateBulkField('notes')" onfocus="activateBulkField('notes')"></textarea>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="notes_mode" id="notes_mode_append" value="append" checked onchange="activateBulkField('notes')">
+                                    <label class="form-check-label small text-muted cursor-pointer" for="notes_mode_append">
+                                        Ajouter à la suite des notes existantes
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="notes_mode" id="notes_mode_replace" value="replace" onchange="activateBulkField('notes')">
+                                    <label class="form-check-label small text-muted cursor-pointer" for="notes_mode_replace">
+                                        Remplacer complètement
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer border-top py-3 px-4 d-flex justify-content-between">
+                <div>
+                    <span class="badge bg-light text-dark border px-3 py-2 fw-semibold" id="bulkSelectedFieldsCount">
+                        0 champ sélectionné
+                    </span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-warning text-dark fw-bold px-4 shadow-sm" id="bulkSubmitBtn" disabled onclick="submitBulkModifyForm()">
+                        <i class="bi bi-check2-circle me-1"></i>Appliquer les modifications (<span id="bulkSubmitBtnCount">0</span>)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'gparc_selected_equipements';
+
+    function getStoredSelectedIds() {
+        try {
+            const raw = sessionStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                const arr = JSON.parse(raw);
+                if (Array.isArray(arr)) {
+                    return new Set(arr.map(String));
+                }
+            }
+        } catch (e) {}
+        return new Set();
+    }
+
+    function saveStoredSelectedIds(set) {
+        try {
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(set)));
+        } catch (e) {}
+    }
+
+    function clearStoredSelectedIds() {
+        try {
+            sessionStorage.removeItem(STORAGE_KEY);
+        } catch (e) {}
+    }
+
+    function syncCheckboxesFromStorage() {
+        const selectedIds = getStoredSelectedIds();
+        document.querySelectorAll('.bulk-eq-checkbox').forEach(cb => {
+            cb.checked = selectedIds.has(String(cb.value));
+        });
+    }
+
+    function handleCellClick(td, event) {
+        if (event.target.tagName.toLowerCase() !== 'input') {
+            const cb = td.querySelector('.bulk-eq-checkbox');
+            if (cb) {
+                cb.checked = !cb.checked;
+                handleCheckboxChange(cb);
+            }
+        }
+    }
+
+    function handleCheckboxChange(cb) {
+        const selectedIds = getStoredSelectedIds();
+        const id = String(cb.value);
+        if (cb.checked) {
+            selectedIds.add(id);
+        } else {
+            selectedIds.delete(id);
+        }
+        saveStoredSelectedIds(selectedIds);
+        updateBulkUI();
+    }
+
+    function toggleAllBulk(checked) {
+        const selectedIds = getStoredSelectedIds();
+        document.querySelectorAll('.bulk-eq-checkbox').forEach(cb => {
+            cb.checked = checked;
+            const id = String(cb.value);
+            if (checked) {
+                selectedIds.add(id);
+            } else {
+                selectedIds.delete(id);
+            }
+        });
+        saveStoredSelectedIds(selectedIds);
+        updateBulkUI();
+    }
+
+    function deselectAllEquipements() {
+        clearStoredSelectedIds();
+        document.querySelectorAll('.bulk-eq-checkbox').forEach(cb => {
+            cb.checked = false;
+        });
+        const checkAll = document.getElementById('checkAllEquipements');
+        if (checkAll) {
+            checkAll.checked = false;
+            checkAll.indeterminate = false;
+        }
+        updateBulkUI();
+    }
+
+    function updateBulkUI() {
+        const selectedIds = getStoredSelectedIds();
+        const totalCount = selectedIds.size;
+        const visibleBoxes = document.querySelectorAll('.bulk-eq-checkbox');
+        const checkedVisible = document.querySelectorAll('.bulk-eq-checkbox:checked');
+        const visibleCount = checkedVisible.length;
+
+        const bar = document.getElementById('bulkActionBar');
+        const countBadge = document.getElementById('bulkCountBadge');
+        const modalBadge = document.getElementById('bulkModalCountBadge');
+        const btnCount = document.getElementById('bulkSubmitBtnCount');
+        const visibleBadge = document.getElementById('bulkVisibleCountBadge');
+        const checkAll = document.getElementById('checkAllEquipements');
+
+        if (countBadge) countBadge.textContent = totalCount;
+        if (modalBadge) modalBadge.textContent = totalCount + ' équipement' + (totalCount > 1 ? 's' : '');
+        if (btnCount) btnCount.textContent = totalCount;
+
+        if (visibleBadge) {
+            if (totalCount > 0 && totalCount !== visibleCount) {
+                visibleBadge.textContent = '(' + visibleCount + ' visible' + (visibleCount > 1 ? 's' : '') + ' dans ce filtre)';
+            } else {
+                visibleBadge.textContent = '';
+            }
+        }
+
+        if (bar) {
+            if (totalCount > 0) {
+                bar.classList.remove('d-none');
+            } else {
+                bar.classList.add('d-none');
+            }
+        }
+
+        if (checkAll && visibleBoxes.length > 0) {
+            checkAll.checked = (visibleCount === visibleBoxes.length);
+            checkAll.indeterminate = (visibleCount > 0 && visibleCount < visibleBoxes.length);
+        }
+    }
+
+    function activateBulkField(fieldName) {
+        const toggle = document.getElementById('toggle_modify_' + fieldName);
+        if (toggle && !toggle.checked) {
+            toggle.checked = true;
+            toggleBulkFieldSection(fieldName);
+        }
+    }
+
+    function toggleBulkFieldSection(fieldName) {
+        const toggle = document.getElementById('toggle_modify_' + fieldName);
+        const card = document.getElementById('card_modify_' + fieldName);
+        const badge = document.getElementById('badge_modify_' + fieldName);
+
+        if (toggle && toggle.checked) {
+            if (card) card.classList.add('active-field');
+            if (badge) {
+                badge.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Sera modifié';
+                badge.className = 'badge bg-warning text-dark fw-bold bulk-field-badge';
+            }
+        } else {
+            if (card) card.classList.remove('active-field');
+            if (badge) {
+                badge.innerHTML = '<i class="bi bi-dash-circle me-1"></i>Inchangé';
+                badge.className = 'badge bg-light text-muted border bulk-field-badge';
+            }
+        }
+
+        updateBulkModalState();
+    }
+
+    function updateBulkModalState() {
+        const activeToggles = document.querySelectorAll('.bulk-field-toggle:checked');
+        const fieldsCount = activeToggles.length;
+        const submitBtn = document.getElementById('bulkSubmitBtn');
+        const countBadge = document.getElementById('bulkSelectedFieldsCount');
+
+        if (countBadge) {
+            countBadge.textContent = fieldsCount + (fieldsCount > 1 ? ' champs sélectionnés pour mise à jour' : ' champ sélectionné pour mise à jour');
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = (fieldsCount === 0);
+        }
+    }
+
+    function selectBulkStatus(val) {
+        document.querySelectorAll('.status-btn-opt').forEach(btn => {
+            if (btn.getAttribute('data-status') === val) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        const input = document.getElementById('bulk_new_statut_input');
+        if (input) input.value = val;
+        activateBulkField('statut');
+    }
+
+    function setBulkOs(osName) {
+        const input = document.getElementById('bulk_new_os_input');
+        if (input) {
+            input.value = osName;
+            input.focus();
+            syncBulkOsChips(osName);
+        }
+        activateBulkField('os');
+    }
+
+    function clearBulkOsInput() {
+        const input = document.getElementById('bulk_new_os_input');
+        if (input) {
+            input.value = '';
+            syncBulkOsChips('');
+        }
+    }
+
+    function syncBulkOsChips(val) {
+        document.querySelectorAll('#bulk-os-chips .os-bulk-chip').forEach(btn => {
+            if (btn.getAttribute('data-os') === val) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    function submitBulkModifyForm() {
+        const activeToggles = document.querySelectorAll('.bulk-field-toggle:checked');
+        if (activeToggles.length === 0) {
+            alert('Veuillez activer au moins un champ à modifier.');
+            return;
+        }
+
+        const selectedIds = getStoredSelectedIds();
+        if (selectedIds.size === 0) {
+            alert('Aucun équipement sélectionné.');
+            return;
+        }
+
+        const form = document.getElementById('bulkActionForm');
+        document.getElementById('bulkActionInput').value = 'modify';
+
+        // Remplacer les inputs 'ids[]' pour inclure TOUS les IDs (y compris ceux masqués par les recherches précédentes)
+        form.querySelectorAll('input[name="ids[]"]').forEach(el => el.remove());
+        selectedIds.forEach(id => {
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'ids[]';
+            hidden.value = id;
+            form.appendChild(hidden);
+        });
+
+        // Copier les valeurs actives de la modale dans le formulaire principal
+        const modal = document.getElementById('bulkModifyModal');
+        if (modal) {
+            modal.querySelectorAll('input, select, textarea').forEach(el => {
+                if (!el.name) return;
+                if ((el.type === 'checkbox' || el.type === 'radio') && !el.checked) {
+                    return;
+                }
+                let existing = form.querySelector('[name="' + el.name + '"]');
+                if (existing) {
+                    existing.value = el.value;
+                } else {
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = el.name;
+                    hidden.value = el.value;
+                    form.appendChild(hidden);
+                }
+            });
+        }
+
+        clearStoredSelectedIds();
+        form.submit();
+    }
+
+    function confirmBulkDelete() {
+        const selectedIds = getStoredSelectedIds();
+        const count = selectedIds.size;
+        if (count === 0) return;
+        if (confirm('Êtes-vous absolument sûr de vouloir supprimer définitivement ces ' + count + ' équipement(s) du parc ?\nCette action est irréversible.')) {
+            const form = document.getElementById('bulkActionForm');
+            document.getElementById('bulkActionInput').value = 'delete';
+            form.querySelectorAll('input[name="ids[]"]').forEach(el => el.remove());
+            selectedIds.forEach(id => {
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'ids[]';
+                hidden.value = id;
+                form.appendChild(hidden);
+            });
+            clearStoredSelectedIds();
+            form.submit();
+        }
+    }
+
+    function initBulkSelection() {
+        syncCheckboxesFromStorage();
+        document.querySelectorAll('.bulk-eq-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                handleCheckboxChange(this);
+            });
+            cb.addEventListener('click', function(e) {
+                e.stopPropagation();
+                handleCheckboxChange(this);
+            });
+        });
+        updateBulkUI();
+        updateBulkModalState();
+    }
+
+    document.addEventListener('DOMContentLoaded', initBulkSelection);
+    document.addEventListener('turbo:load', initBulkSelection);
+</script>
+{% endblock %}

@@ -1,0 +1,212 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Composants & Pièces Détachées | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+{# En-tête #}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-2 flex-shrink-0">
+    <div>
+        <h1 class="h3 fw-bold mb-1" style="color: #121212;">Composants & Pièces Détachées</h1>
+        <p class="text-muted mb-0 small">Gestion des barrettes RAM, disques SSD, toners, alimentations et consommables DSI</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ path('app_composant_new') }}" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm" data-shortcut="n" title="Raccourci : N">
+            <i class="bi bi-plus-lg"></i>
+            <span>Nouveau Composant</span>
+        </a>
+    </div>
+</div>
+
+{# Cartes résumé (Fixe) #}
+<div class="row g-2 mb-3 flex-shrink-0">
+    <div class="col-6 col-md-3">
+        <div class="card p-2 text-center border-0 shadow-sm">
+            <span class="text-muted small">Total Pièces</span>
+            <span class="fs-4 fw-bold text-dark">{{ stats.total }}</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-2 text-center border-0 shadow-sm">
+            <span class="text-muted small">En Stock Magasin</span>
+            <span class="fs-4 fw-bold text-success">{{ stats.stock }}</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-2 text-center border-0 shadow-sm">
+            <span class="text-muted small">Installés en Machine</span>
+            <span class="fs-4 fw-bold text-primary">{{ stats.installes }}</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-2 text-center border-0 shadow-sm">
+            <span class="text-muted small">Vétustes / À renouveler</span>
+            <span class="fs-4 fw-bold text-warning">{{ stats.vieux }}</span>
+        </div>
+    </div>
+</div>
+
+{# Barre de Recherche & Filtres (Fixe) #}
+<div class="card mb-3 flex-shrink-0">
+    <div class="card-body p-2">
+        <form method="get" action="{{ path('app_composant_index') }}" class="row g-2 align-items-center">
+            <div class="col-12 col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm border-start-0" placeholder="Rechercher nom, S/N, machine..." data-shortcut="/">
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <select name="statut" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="all" {{ current_statut == 'all' ? 'selected' : '' }}>-- Tous les statuts --</option>
+                    <option value="En stock" {{ current_statut == 'En stock' ? 'selected' : '' }}>En stock (Disponible)</option>
+                    <option value="Installé" {{ current_statut == 'Installé' ? 'selected' : '' }}>Installé en machine</option>
+                    <option value="Défectueux" {{ current_statut == 'Défectueux' ? 'selected' : '' }}>Défectueux</option>
+                    <option value="Rebut" {{ current_statut == 'Rebut' ? 'selected' : '' }}>Au rebut</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <select name="age" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="all" {{ current_age == 'all' ? 'selected' : '' }}>-- Tous les âges --</option>
+                    <option value="vieillissant" {{ current_age == 'vieillissant' ? 'selected' : '' }}>⚠️ Vieillissant (3 à 5 ans)</option>
+                    <option value="obsolete" {{ current_age == 'obsolete' ? 'selected' : '' }}>🚨 Obsolète (&gt; 5 ans)</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-dark w-100">Filtrer</button>
+                {% if search or current_statut != 'all' or current_age != 'all' %}
+                    <a href="{{ path('app_composant_index') }}" class="btn btn-sm btn-outline-secondary" title="Réinitialiser">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+{# Tableau Déroulant Indépendant #}
+<div class="card flex-grow-1">
+    <div class="scroll-table-container">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small">
+                <tr>
+                    <th>Composant / Pièce</th>
+                    <th>Type</th>
+                    <th>Machine Associée</th>
+                    <th>Stock / Emplacement</th>
+                    <th>Âge & Vétusté</th>
+                    <th>Statut</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for comp in composants %}
+                    <tr data-shortcuts-target="row" data-action="click->shortcuts#pick">
+                        <td>
+                            <div class="fw-bold text-dark">
+                                {% if comp.marque or comp.modele %}
+                                    {{ comp.marque }} {{ comp.modele }}
+                                {% else %}
+                                    {{ comp.nom }}
+                                {% endif %}
+                            </div>
+                            {% if comp.capacite or comp.frequence %}
+                                <div class="small text-muted">
+                                    {% if comp.capacite %}<span class="me-2"><i class="bi bi-hdd me-1"></i>{{ comp.capacite }}</span>{% endif %}
+                                    {% if comp.frequence %}<span><i class="bi bi-lightning me-1"></i>{{ comp.frequence }}</span>{% endif %}
+                                </div>
+                            {% elseif comp.nom and (comp.marque or comp.modele) %}
+                                <div class="small text-muted fst-italic">{{ comp.nom }}</div>
+                            {% endif %}
+                            {% if comp.numeroSerie %}
+                                <div class="small text-muted font-monospace">S/N: {{ comp.numeroSerie }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ comp.type }}</span>
+                        </td>
+                        <td>
+                            {% if comp.equipement %}
+                                <a href="{{ path('app_equipement_show', {'id': comp.equipement.id}) }}" class="fw-semibold text-dark text-decoration-none">
+                                    <i class="bi bi-pc me-1 text-primary"></i>{{ comp.equipement.nom }}
+                                </a>
+                                <div class="small text-muted font-monospace">{{ comp.equipement.numeroSerie }}</div>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border">Non monté (En réserve)</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="small fw-semibold text-dark">Qté : {{ comp.quantite }}</div>
+                            <small class="text-muted">
+                                <i class="bi bi-geo-alt me-1"></i>{{ comp.lieu ? comp.lieu.nomLieu : 'Non défini' }}
+                            </small>
+                        </td>
+                        <td>
+                            {% if comp.ageAnnees is not null %}
+                                {% if comp.isObsolete %}
+                                    <span class="badge badge-age-obsolete">
+                                        <i class="bi bi-exclamation-octagon-fill me-1"></i>{{ comp.ageAnnees }} ans (Obsolète)
+                                    </span>
+                                {% elseif comp.isVieillissant %}
+                                    <span class="badge badge-age-warning">
+                                        <i class="bi bi-clock-history me-1"></i>{{ comp.ageAnnees }} ans (Vieillissant)
+                                    </span>
+                                {% else %}
+                                    <span class="badge badge-age-ok">
+                                        <i class="bi bi-check-circle me-1"></i>{{ comp.ageAnnees }} ans
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if comp.statut == 'En stock' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-box-seam me-1"></i>En stock
+                                </span>
+                            {% elseif comp.statut == 'Installé' %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                    <i class="bi bi-cpu me-1"></i>Installé
+                                </span>
+                            {% elseif comp.statut == 'Défectueux' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                    <i class="bi bi-exclamation-octagon me-1"></i>Défectueux
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">{{ comp.statut }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex justify-content-end gap-1">
+                                <a href="{{ path('app_composant_edit', {'id': comp.id}) }}" class="btn btn-outline-secondary btn-sm" title="Modifier" data-shortcut="m">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button type="button" 
+                                    class="btn btn-outline-danger btn-sm" 
+                                    title="Supprimer"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#gtaDeleteModal"
+                                    data-delete-url="{{ path('app_composant_delete', {'id': comp.id}) }}"
+                                    data-item-name="{{ comp.nom }} ({{ comp.type }})"
+                                    data-token="{{ csrf_token('delete' ~ comp.id) }}"
+                                    data-scandal-count="{{ comp.equipement ? 1 : 0 }}"
+                                    data-scandal-text="{% if comp.equipement %}⚠️ Ce composant est actuellement déclaré comme <strong>installé dans la machine '{{ comp.equipement.nom }}'</strong>. Sa suppression va rompre la liaison matérielle !{% endif %}"
+                                    data-shortcut="s">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="bi bi-cpu fs-4 d-block mb-1"></i>
+                            Aucun composant ou pièce détachée trouvé.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

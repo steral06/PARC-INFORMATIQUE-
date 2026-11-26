@@ -1,0 +1,98 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Catégories d'Équipements | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-2 flex-shrink-0">
+    <div>
+        <h1 class="h3 fw-bold mb-1" style="color: #121212;">Catégories d'Équipements</h1>
+        <p class="text-muted mb-0 small">Classification et familles des matériels informatiques et technologiques</p>
+    </div>
+    <a href="{{ path('app_categorie_new') }}" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm" data-shortcut="n" title="Raccourci : N">
+        <i class="bi bi-plus-lg"></i>
+        <span>Nouvelle Catégorie</span>
+    </a>
+</div>
+
+{# Barre de Recherche #}
+<div class="card mb-3 flex-shrink-0">
+    <div class="card-body p-2 px-3">
+        <form method="get" class="d-flex align-items-center gap-2">
+            <div class="input-group input-group-sm flex-grow-1">
+                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                <input type="text" name="q" value="{{ current_search }}" class="form-control bg-light border-start-0" placeholder="Rechercher une catégorie..." data-shortcut="/">
+            </div>
+            {% if current_search is not empty %}
+                <a href="{{ path('app_categorie_index') }}" class="btn btn-outline-secondary btn-sm" title="Effacer la recherche">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="scroll-table-container flex-grow-1 p-1">
+    <div class="row g-3">
+        {% for cat in categories %}
+            <div class="col-12 col-md-6 col-lg-4" data-shortcuts-target="row" data-action="click->shortcuts#pick">
+                <div class="card h-100 shadow-sm border" style="border-top: 3px solid var(--gta-orange) !important;">
+                    <div class="card-body p-4 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="fw-bold mb-0 text-dark">{{ cat.nomCat }}</h5>
+                                <span class="badge bg-primary text-white fs-6 shadow-sm">
+                                    {{ counts[cat.id] ?? 0 }} actif(s)
+                                </span>
+                            </div>
+                            <p class="text-muted small mb-3">
+                                {{ cat.description ?: 'Aucune description spécifiée.' }}
+                            </p>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top mt-2">
+                            <a href="{{ path('app_equipement_index', {'categorie': cat.id}) }}" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1">
+                                <i class="bi bi-eye"></i>
+                                <span>Voir le matériel</span>
+                            </a>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ path('app_categorie_edit', {'id': cat.id}) }}" class="btn btn-outline-secondary" title="Modifier" data-shortcut="m">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% set catCount = counts[cat.id] ?? 0 %}
+                                {% set catWarning = '' %}
+                                {% if catCount > 0 %}
+                                    {% set catWarning = '⚠️ Cette catégorie regroupe actuellement <strong>' ~ catCount ~ ' équipement(s)</strong> dans le parc. Sa suppression va retirer la catégorie de ces équipements qui se retrouveront non classés !' %}
+                                {% endif %}
+                                <button type="button" 
+                                        class="btn btn-outline-danger" 
+                                        title="Supprimer cette catégorie"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#gtaDeleteModal"
+                                        data-delete-url="{{ path('app_categorie_delete', {'id': cat.id}) }}"
+                                        data-item-name="Catégorie: {{ cat.nomCat }}"
+                                        data-token="{{ csrf_token('delete' ~ cat.id) }}"
+                                        data-scandal-count="{{ catCount }}"
+                                        data-danger-warning="{{ catWarning }}"
+                                        data-shortcut="s">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="col-12">
+                <div class="card p-5 text-center">
+                    <i class="bi bi-tags text-muted fs-1 mb-2"></i>
+                    <h5 class="fw-bold text-dark">Aucune catégorie répertoriée</h5>
+                    <p class="text-muted small mb-3">Créez votre première catégorie pour organiser le parc.</p>
+                    <div>
+                        <a href="{{ path('app_categorie_new') }}" class="btn btn-primary btn-sm">Créer une catégorie</a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

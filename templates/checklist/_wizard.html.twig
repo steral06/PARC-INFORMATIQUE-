@@ -1,0 +1,434 @@
+{% set nbTotal = preparation.nbEtapesTotal %}
+{% set nbOk = preparation.nbEtapesOk %}
+{% set nbKo = preparation.nbEtapesKo %}
+{% set nbFait = nbOk + nbKo %}
+{% set progression = preparation.tauxProgression %}
+{% set isTerminee = preparation.statut in ['terminee', 'abandonnee'] %}
+{% set isService = preparation.type == 'service' %}
+
+{# Déterminer l'index de la première étape en attente (étape courante par défaut) #}
+{% set defaultActiveIndex = 0 %}
+{% set foundFirstPending = false %}
+{% for index, etape in preparation.etapes %}
+    {% if not foundFirstPending and etape.statut == 'en_attente' %}
+        {% set defaultActiveIndex = index %}
+        {% set foundFirstPending = true %}
+    {% endif %}
+{% endfor %}
+{% if not foundFirstPending and nbTotal > 0 %}
+    {% set defaultActiveIndex = nbTotal - 1 %}
+{% endif %}
+
+<div id="checklistWizardContent"
+     data-preparation-id="{{ preparation.id }}"
+     data-equipement-id="{{ equipement.id }}"
+     data-total-steps="{{ nbTotal }}"
+     data-default-step="{{ defaultActiveIndex }}"
+     data-statut="{{ preparation.statut }}">
+
+    {# ─── BANDEAU SUPÉRIEUR : Contexte & Progression Globale ─── #}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 p-3 rounded-4 mb-3"
+         style="background: #ffffff; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
+        <div class="d-flex align-items-center gap-2">
+            {% if isService %}
+                <span class="badge rounded-pill px-3 py-2 fw-semibold"
+                      style="background: linear-gradient(135deg,#E47000,#ff9933); color:#fff; font-size:.8rem;">
+                    <i class="bi bi-hdd-stack me-1"></i>En service &bull; Sauvegarde requise
+                </span>
+            {% else %}
+                <span class="badge rounded-pill px-3 py-2 fw-semibold bg-dark text-white" style="font-size:.8rem;">
+                    <i class="bi bi-box-seam me-1"></i>En stock &bull; Préparation neuve
+                </span>
+            {% endif %}
+            <span class="text-muted small d-none d-sm-inline">
+                {{ equipement.nom }} (<strong class="text-dark">{{ equipement.marque }}</strong>)
+            </span>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <div class="text-end">
+                <div class="small fw-bold text-dark" id="stepCounterLabel">
+                    Étape <span id="currentStepNumDisplay">{{ defaultActiveIndex + 1 }}</span> / {{ nbTotal }}
+                </div>
+                <div class="text-muted" style="font-size:.72rem;">
+                    <span class="text-success fw-semibold">{{ nbOk }} OK</span>
+                    {% if nbKo > 0 %} &bull; <span class="text-danger fw-semibold">{{ nbKo }} KO</span>{% endif %}
+                    &bull; {{ nbTotal - nbFait }} restant(s)
+                </div>
+            </div>
+            <div class="progress" style="width: 100px; height: 8px; border-radius: 99px;">
+                <div class="progress-bar {% if progression == 100 %}bg-success{% elseif nbKo > 0 %}bg-warning{% else %}bg-primary{% endif %}"
+                     role="progressbar"
+                     style="width: {{ progression }}%;"
+                     aria-valuenow="{{ progression }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100"></div>
+            </div>
+        </div>
+    </div>
+
+    {# ─── STEPPER HORIZONTAL INTERACTIF (PASTILLES CLIQUABLES) ─── #}
+    <div class="step-nav-wrapper p-2 rounded-4 mb-3" style="background:#f8f9fa; border:1px solid #e9ecef; overflow-x:auto;">
+        <div class="d-flex align-items-center justify-content-between min-w-100" style="min-width: max-content; gap: 8px;">
+            {% for index, etape in preparation.etapes %}
+                {% set st = etape.statut %}
+                <button type="button"
+                        class="btn-step-bubble d-flex flex-column align-items-center text-decoration-none border-0 bg-transparent p-1"
+                        id="stepBubble_{{ index }}"
+                        onclick="goToStep({{ index }})"
+                        title="{{ etape.libelle }}"
+                        style="cursor: pointer; min-width: 54px;">
+                    <div class="step-circle rounded-circle d-flex align-items-center justify-content-center fw-bold position-relative shadow-sm"
+                         id="stepCircle_{{ index }}"
+                         style="width: 34px; height: 34px; font-size: .82rem; transition: all .2s ease;
+                         {% if st == 'ok' %}
+                             background-color: #198754; color: #ffffff;
+                         {% elseif st == 'ko' %}
+                             background-color: #dc3545; color: #ffffff;
+                         {% else %}
+                             background-color: #ffffff; color: #6c757d; border: 2px solid #dee2e6;
+                         {% endif %}">
+                        {% if st == 'ok' %}
+                            <i class="bi bi-check-lg"></i>
+                        {% elseif st == 'ko' %}
+                            <i class="bi bi-x-lg"></i>
+                        {% else %}
+                            {{ index + 1 }}
+                        {% endif %}
+                    </div>
+                    <span class="step-mini-label text-truncate mt-1 text-muted"
+                          id="stepMiniLabel_{{ index }}"
+                          style="font-size: .68rem; max-width: 65px;">
+                        {% if etape.isSauvegarde %}Svg {{ index + 1 }}{% else %}{{ etape.cle|capitalize }}{% endif %}
+                    </span>
+                </button>
+                {% if not loop.last %}
+                    <div class="step-connector flex-grow-1"
+                         id="stepConnector_{{ index }}"
+                         style="height: 2px; min-width: 14px; background: {% if st != 'en_attente' %}#198754{% else %}#dee2e6{% endif %}; transition: background .3s ease;"></div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    {# ─── CONTENEUR DES ÉTAPES (UNE SEULE ACTIVE À LA FOIS) ─── #}
+    <div class="step-panes-container">
+        {% for index, etape in preparation.etapes %}
+            {% set st = etape.statut %}
+            <div class="step-pane-item"
+                 id="stepPane_{{ index }}"
+                 data-etape-id="{{ etape.id }}"
+                 style="display: {% if index == defaultActiveIndex %}block{% else %}none{% endif %};">
+
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3"
+                     style="border: 1px solid rgba(0,0,0,0.06); background:#ffffff;">
+
+                    {# En-tête de la phase #}
+                    <div class="p-3 border-bottom d-flex align-items-center justify-content-between"
+                         style="{% if etape.isSauvegarde %}background: #fffbf2;{% else %}background: #f8faff;{% endif %}">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge rounded-pill px-3 py-1 fw-bold
+                                {% if etape.isSauvegarde %}
+                                    bg-warning text-dark
+                                {% else %}
+                                    bg-primary text-white
+                                {% endif %}" style="font-size: .75rem;">
+                                {% if etape.isSauvegarde %}
+                                    <i class="bi bi-hdd-fill me-1"></i>PHASE 1 &bull; SAUVEGARDE EXTERNE
+                                {% else %}
+                                    <i class="bi bi-cpu-fill me-1"></i>PHASE 2 &bull; INSTALLATION &amp; CONFIG
+                                {% endif %}
+                            </span>
+                            <span class="badge bg-light text-muted border" style="font-size: .75rem;">
+                                Étape {{ index + 1 }} sur {{ nbTotal }}
+                            </span>
+                        </div>
+
+                        {# Badge statut actuel #}
+                        <div>
+                            {% if st == 'ok' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Étape Validée
+                                </span>
+                            {% elseif st == 'ko' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>Anomalie signalée
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border px-3 py-1">
+                                    <i class="bi bi-clock me-1"></i>En attente de vérification
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {# Corps héroïque de l'étape #}
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-start gap-4">
+                            {# Grande icône #}
+                            <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-4 shadow-sm"
+                                 style="width: 72px; height: 72px;
+                                 {% if etape.isSauvegarde %}
+                                     background: linear-gradient(135deg, #fff3cd, #ffe69c); color: #d63384;
+                                 {% else %}
+                                     background: linear-gradient(135deg, #cfe2ff, #9ec5fe); color: #0d6efd;
+                                 {% endif %}">
+                                <i class="bi {{ etape.icone ?? 'bi-gear-fill' }} fs-1 text-dark"></i>
+                            </div>
+
+                            {# Informations & Consignes de l'étape #}
+                            <div class="flex-grow-1">
+                                <h4 class="fw-bold text-dark mb-2 lh-sm">{{ etape.libelle }}</h4>
+                                <div class="p-3 rounded-3 mb-3" style="background:#f9fafb; border: 1px solid #f1f3f5; font-size:.9rem; color:#374151;">
+                                    <div class="fw-semibold text-secondary small text-uppercase mb-1" style="letter-spacing: .5px;">
+                                        <i class="bi bi-info-circle me-1 text-primary"></i>Consigne technique à effectuer :
+                                    </div>
+                                    <div class="lh-base">{{ etape.description }}</div>
+                                </div>
+
+                                {# Option spécifique : ajouter un disque supplémentaire si étape des disques sup #}
+                                {% if etape.cle == 'sauvegarde_disques_sup' and not isTerminee %}
+                                    <div class="p-3 rounded-3 mb-3 border border-warning-subtle" style="background: #fffdf5;">
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <div class="fw-semibold small text-dark">
+                                                <i class="bi bi-plus-circle text-warning me-1"></i>Disques ou partitions additionnels (E:, F:...) ?
+                                            </div>
+                                            <button type="button" class="btn btn-outline-warning btn-sm py-0 px-2"
+                                                    onclick="document.getElementById('formAjoutDisqueStep_{{ index }}').classList.toggle('d-none');">
+                                                + Ajouter un lecteur
+                                            </button>
+                                        </div>
+                                        <div id="formAjoutDisqueStep_{{ index }}" class="d-none mt-2">
+                                            <div class="input-group input-group-sm">
+                                                <input type="text" id="inputDisqueStep_{{ index }}"
+                                                       class="form-control"
+                                                       placeholder="Ex: Lecteur E: (Archives RH) ou Partition F:">
+                                                <button type="button" class="btn btn-warning fw-semibold"
+                                                        onclick="ajouterDisqueDepuisStep({{ preparation.id }}, '{{ csrf_token('checklist_disque_' ~ preparation.id) }}', {{ index }})">
+                                                    Insérer cette étape
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                {# Observation déjà existante #}
+                                {% if etape.observations %}
+                                    <div class="alert alert-light border rounded-3 p-3 mb-3 small d-flex align-items-start gap-2">
+                                        <i class="bi bi-chat-quote-fill fs-5 text-muted"></i>
+                                        <div>
+                                            <div class="fw-bold text-dark">Observation enregistrée :</div>
+                                            <div class="fst-italic text-secondary">{{ etape.observations }}</div>
+                                            {% if etape.dateValidation %}
+                                                <div class="text-muted mt-1" style="font-size: .72rem;">
+                                                    Horodaté le {{ etape.dateValidation|date('d/m/Y à H:i') }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                {# Formulaire saisie remarque / observation (dépliable) #}
+                                <div id="boxObsStep_{{ index }}" class="mb-3 d-none">
+                                    <label class="form-label small fw-semibold text-dark">
+                                        <i class="bi bi-pencil-square me-1"></i>Remarque / Précision pour cette étape :
+                                    </label>
+                                    <textarea id="obsInputStep_{{ index }}"
+                                              class="form-control form-control-sm rounded-3"
+                                              rows="2"
+                                              placeholder="Précisez un détail ou le problème rencontré (ex: clé d'activation manquante, lecteur E: introuvable...)">{{ etape.observations }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Pied de carte : BOUTONS D'ACTION ET NAVIGATION PAS-À-PAS #}
+                    <div class="card-footer bg-light border-top p-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        {# Navigation précédent #}
+                        <div>
+                            {% if index > 0 %}
+                                <button type="button" class="btn btn-outline-secondary btn-sm px-3 rounded-3"
+                                        onclick="goToStep({{ index - 1 }})">
+                                    <i class="bi bi-arrow-left me-1"></i>Précédent
+                                </button>
+                            {% else %}
+                                <button type="button" class="btn btn-outline-secondary btn-sm px-3 rounded-3" disabled>
+                                    <i class="bi bi-arrow-left me-1"></i>Début
+                                </button>
+                            {% endif %}
+                        </div>
+
+                        {# Actions centrales : Saisir une note #}
+                        <div>
+                            <button type="button"
+                                    class="btn btn-link btn-sm text-secondary text-decoration-none"
+                                    onclick="document.getElementById('boxObsStep_{{ index }}').classList.toggle('d-none'); document.getElementById('obsInputStep_{{ index }}').focus();">
+                                <i class="bi bi-chat-left-dots me-1"></i>
+                                <span id="toggleObsLabel_{{ index }}">Ajouter une note</span>
+                            </button>
+                        </div>
+
+                        {# Actions de validation #}
+                        <div class="d-flex align-items-center gap-2">
+                            {% if not isTerminee %}
+                                {# Bouton Signaler Problème #}
+                                <button type="button"
+                                        class="btn btn-outline-danger btn-sm px-3 rounded-3 d-inline-flex align-items-center gap-1"
+                                        title="Marquer cette étape en anomalie et continuer"
+                                        onclick="validerEtapeStep({{ etape.id }}, 'ko', {{ preparation.id }}, {{ equipement.id }}, '{{ csrf_token('checklist_etape_' ~ etape.id) }}', {{ index }})">
+                                    <i class="bi bi-x-circle"></i>
+                                    <span>Problème</span>
+                                </button>
+
+                                {# Bouton Valider OK & Suivant #}
+                                <button type="button"
+                                        class="btn btn-success btn-sm px-4 fw-bold rounded-3 shadow-sm d-inline-flex align-items-center gap-2"
+                                        onclick="validerEtapeStep({{ etape.id }}, 'ok', {{ preparation.id }}, {{ equipement.id }}, '{{ csrf_token('checklist_etape_' ~ etape.id) }}', {{ index }})">
+                                    <i class="bi bi-check2-circle fs-6"></i>
+                                    <span>Valider &amp; Suivant</span>
+                                    <i class="bi bi-arrow-right"></i>
+                                </button>
+                            {% endif %}
+
+                            {# Bouton passer à l'étape suivante (navigation libre) #}
+                            {% if index < nbTotal - 1 %}
+                                <button type="button" class="btn btn-outline-secondary btn-sm px-3 rounded-3"
+                                        onclick="goToStep({{ index + 1 }})"
+                                        title="Aller à l'étape suivante sans modifier">
+                                    Suivant <i class="bi bi-arrow-right ms-1"></i>
+                                </button>
+                            {% else %}
+                                {# Dernière étape atteinte : bouton afficher bilan #}
+                                <button type="button" class="btn btn-dark btn-sm px-3 rounded-3"
+                                        onclick="goToBilan()">
+                                    Bilan final <i class="bi bi-flag-fill ms-1 text-warning"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        {% endfor %}
+
+        {# ─── ÉCRAN RÉCAPITULATIF / BILAN FINAL ─── #}
+        <div class="step-pane-item" id="stepPane_bilan" style="display: none;">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3 text-center p-4" style="background:#ffffff; border: 1px solid rgba(0,0,0,0.06);">
+                <div class="my-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 shadow"
+                         style="width: 80px; height: 80px; background: linear-gradient(135deg, #198754, #20c997); color:#fff;">
+                        <i class="bi bi-clipboard2-check fs-1"></i>
+                    </div>
+                    <h3 class="fw-bold text-dark mb-1">Bilan de la préparation</h3>
+                    <p class="text-muted small">
+                        Vérification complète de <strong>{{ equipement.nom }}</strong> ({{ equipement.statut }})
+                    </p>
+                    {% if equipement.systemeExploitation and 'Windows 11' in equipement.systemeExploitation %}
+                    <div class="alert alert-success border-0 shadow-sm rounded-3 py-2 px-3 mb-2 d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-patch-check-fill text-success fs-5"></i>
+                        <div class="text-start small">
+                            <span class="fw-bold">Système d'exploitation :</span>
+                            <span class="badge bg-success text-white ms-1"><i class="bi bi-windows me-1"></i>{{ equipement.systemeExploitation }}</span>
+                            <span class="text-muted ms-1">(Standardisé Windows 11)</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="row g-3 justify-content-center mb-4 text-start">
+                    <div class="col-sm-4">
+                        <div class="p-3 rounded-3 bg-light border text-center">
+                            <div class="fs-4 fw-bold text-success">{{ nbOk }} / {{ nbTotal }}</div>
+                            <div class="text-muted small">Étapes conformes</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="p-3 rounded-3 bg-light border text-center">
+                            <div class="fs-4 fw-bold {% if nbKo > 0 %}text-danger{% else %}text-muted{% endif %}">{{ nbKo }}</div>
+                            <div class="text-muted small">Anomalie(s)</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="p-3 rounded-3 bg-light border text-center">
+                            <div class="fs-4 fw-bold text-primary">{{ progression }}%</div>
+                            <div class="text-muted small">Progression globale</div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Liste récapitulative compacte #}
+                <div class="text-start mb-4" style="max-height: 220px; overflow-y: auto;">
+                    <ul class="list-group list-group-flush rounded-3 border">
+                        {% for idx, etape in preparation.etapes %}
+                            <li class="list-group-item d-flex align-items-center justify-content-between py-2 px-3 small"
+                                style="cursor: pointer;" onclick="goToStep({{ idx }})">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge rounded-circle p-1 {% if etape.statut == 'ok' %}bg-success{% elseif etape.statut == 'ko' %}bg-danger{% else %}bg-secondary{% endif %} text-white"
+                                          style="width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;">
+                                        {{ idx + 1 }}
+                                    </span>
+                                    <span class="fw-semibold text-dark">{{ etape.libelle }}</span>
+                                    {% if etape.observations %}
+                                        <span class="text-muted fst-italic">({{ etape.observations|slice(0, 30) }}...)</span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    {% if etape.statut == 'ok' %}
+                                        <span class="badge bg-success-subtle text-success">OK</span>
+                                    {% elseif etape.statut == 'ko' %}
+                                        <span class="badge bg-danger-subtle text-danger">Anomalie</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted border">En attente</span>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="d-flex justify-content-center gap-3">
+                    <button type="button" class="btn btn-outline-secondary px-4 rounded-3" onclick="goToStep(0)">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Revoir les étapes
+                    </button>
+                    {% if not isTerminee %}
+                        <button type="button"
+                                class="btn btn-success px-5 fw-bold rounded-3 shadow d-inline-flex align-items-center gap-2"
+                                onclick="terminerChecklist({{ preparation.id }}, '{{ csrf_token('checklist_cloturer_' ~ preparation.id) }}', {{ equipement.id }})">
+                            <i class="bi bi-check2-all fs-5"></i>
+                            <span>Clôturer &amp; Enregistrer la préparation</span>
+                        </button>
+                    {% else %}
+                        <button type="button" class="btn btn-primary px-4 rounded-3" data-bs-dismiss="modal" onclick="location.reload()">
+                            Fermer le dialogue
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {# ─── BARRE D'ACTIONS GLOBALES DU BAS ─── #}
+    <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+        <div>
+            {% if not isTerminee %}
+                <button type="button" class="btn btn-link btn-sm text-danger text-decoration-none p-0"
+                        onclick="abandonnerChecklist({{ preparation.id }}, '{{ csrf_token('checklist_cloturer_' ~ preparation.id) }}', {{ equipement.id }})">
+                    <i class="bi bi-x-octagon me-1"></i>Abandonner la session
+                </button>
+            {% else %}
+                <span class="badge bg-success-subtle text-success">
+                    <i class="bi bi-lock-fill me-1"></i>Checklist clôturée
+                </span>
+            {% endif %}
+        </div>
+
+        <div>
+            <button type="button" class="btn btn-outline-dark btn-sm rounded-3"
+                    onclick="goToBilan()">
+                <i class="bi bi-list-check me-1"></i>Voir le bilan complet
+            </button>
+        </div>
+    </div>
+
+</div>

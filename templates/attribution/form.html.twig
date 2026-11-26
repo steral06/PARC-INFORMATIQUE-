@@ -1,0 +1,421 @@
+{% extends 'base.html.twig' %}
+
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+
+{% block title %}{{ title }} | GTAC2A-IARDT{% endblock %}
+
+{% block stylesheets %}
+<style>
+    /* Aperçu de la fiche collaborateur sélectionné */
+    #personnelCardPreview {
+        background: #f8fafc;
+        border-left: 4px solid var(--gta-orange) !important;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+    }
+    [data-bs-theme="dark"] #personnelCardPreview {
+        background: #191e2b !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+    }
+    [data-bs-theme="dark"] #previewPersonnelNom {
+        color: #f8fafc !important;
+    }
+    .manual-toggle-btn:hover {
+        color: var(--gta-orange) !important;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="mb-3 flex-shrink-0">
+    <a href="{{ path('app_attribution_index') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 mb-2">
+        <i class="bi bi-arrow-left"></i>
+        <span>Retour aux attributions</span>
+    </a>
+    <div class="d-flex align-items-center gap-2">
+        <div class="form-header-badge">
+            <i class="bi bi-arrow-left-right"></i>
+        </div>
+        <div>
+            <h1 class="h3 fw-bold mb-0" style="color: #121212;">{{ title }}</h1>
+            <p class="text-muted small mb-0">Enregistrez la remise d'un matériel informatique à un collaborateur du personnel</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 col-xl-8">
+        <div class="card card-form mb-4 shadow-sm">
+            <div class="card-body p-4 p-md-5">
+                {{ form_start(form) }}
+
+                <!-- ══════════════════════════════════════════════════════════
+                     SECTION 1 : ÉQUIPEMENT DU PARC
+                     ══════════════════════════════════════════════════════════ -->
+                <div class="form-section-title mb-3">
+                    <i class="bi bi-laptop"></i>
+                    <span>1. Équipement du Parc</span>
+                </div>
+
+                <div class="mb-4">
+                    {{ form_label(form.equipement) }}
+                    {{ form_widget(form.equipement, {'attr': {'class': 'form-select'}}) }}
+                    {{ form_errors(form.equipement) }}
+                    <div class="form-text small" style="font-size: 0.72rem;">Sélectionnez la machine disponible à affecter.</div>
+                </div>
+
+                <!-- ══════════════════════════════════════════════════════════
+                     SECTION 2 : BÉNÉFICIAIRE (LISTE DU PERSONNEL PAR DÉFAUT)
+                     ══════════════════════════════════════════════════════════ -->
+                <div class="form-section-title d-flex align-items-center justify-content-between mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-person-badge"></i>
+                        <span>2. Collaborateur Bénéficiaire</span>
+                    </div>
+                    <span class="badge bg-primary-subtle text-primary border px-2 py-1" style="font-size: 0.72rem;">
+                        <i class="bi bi-people-fill me-1"></i>Répertoire du Personnel
+                    </span>
+                </div>
+
+                {# Sélecteur principal : Liste du personnel classée par type #}
+                <div class="mb-3">
+                    {{ form_label(form.personnel, 'Sélectionner le bénéficiaire (Par défaut) :') }}
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted"><i class="bi bi-person-check-fill"></i></span>
+                        {{ form_widget(form.personnel, {'attr': {'id': 'attribution_personnel', 'class': 'form-select', 'onchange': 'onPersonnelChange(this)'}}) }}
+                    </div>
+                    {{ form_errors(form.personnel) }}
+                    <div class="form-text small" style="font-size: 0.72rem;">
+                        Choisissez le collaborateur dans la liste GTA (Employés, Prestataires, Stagiaires, Visiteurs).
+                    </div>
+                </div>
+
+                {# Carte Aperçu du collaborateur sélectionné #}
+                <div id="personnelCardPreview" class="card mb-3 border-0 shadow-sm d-none">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0" id="previewPersonnelAvatar" style="width: 42px; height: 42px; background: linear-gradient(135deg, var(--gta-orange) 0%, #ff8c1a 100%);">
+                                    <i class="bi bi-person-fill fs-5"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-6 text-dark" id="previewPersonnelNom">-</div>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap small mt-1">
+                                        <span class="badge bg-dark font-monospace text-warning px-2 py-1" id="previewPersonnelMatricule" style="font-size: 0.75rem;">-</span>
+                                        <span class="badge" id="previewPersonnelTypeBadge" style="font-size: 0.75rem;">-</span>
+                                        <span class="text-muted small" id="previewPersonnelService">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-end" id="previewPersonnelExtras">
+                                <span class="badge bg-success-subtle text-success border fw-bold" id="previewPersonnelAtts" title="Machines actuellement détenues">
+                                    <i class="bi bi-laptop me-1"></i><span id="previewPersonnelAttsCount">0</span> machine(s) active(s)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Section repliable pour saisie manuelle occasionnelle #}
+                <div class="mb-4">
+                    <button type="button" class="btn btn-sm btn-link text-muted p-0 text-decoration-none d-inline-flex align-items-center gap-1 manual-toggle-btn" data-bs-toggle="collapse" data-bs-target="#manualBeneficiaryBlock" aria-expanded="false" aria-controls="manualBeneficiaryBlock">
+                        <i class="bi bi-pencil-square"></i>
+                        <span class="small fst-italic">Saisie manuelle d'un bénéficiaire occasionnel / externe (hors répertoire)</span>
+                    </button>
+
+                    <div class="collapse mt-2" id="manualBeneficiaryBlock">
+                        <div class="card card-body bg-light-subtle border p-3 rounded-3">
+                            <div class="row g-2">
+                                <div class="col-12 col-md-6">
+                                    {{ form_label(form.beneficiaireNom) }}
+                                    {{ form_widget(form.beneficiaireNom, {'attr': {'id': 'attribution_beneficiaireNom'}}) }}
+                                    {{ form_errors(form.beneficiaireNom) }}
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    {{ form_label(form.beneficiaireService) }}
+                                    {{ form_widget(form.beneficiaireService, {'attr': {'id': 'attribution_beneficiaireService'}}) }}
+                                    {{ form_errors(form.beneficiaireService) }}
+                                </div>
+                            </div>
+                            <div class="form-text small mt-1 text-muted" style="font-size: 0.72rem;">
+                                Ces champs sont automatiquement synchronisés avec le personnel choisi.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Notice Intelligente de Remplacement (Unicité de PC/Imprimante par collaborateur) #}
+                <div id="conflictNoticeBlock" class="alert alert-warning border-0 shadow-sm p-3 rounded-3 mb-4 d-none" style="background: rgba(228, 112, 0, 0.08); border-left: 4px solid var(--gta-orange) !important;">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 mt-1" style="width: 36px; height: 36px; background: rgba(228, 112, 0, 0.18); color: var(--gta-orange);">
+                            <i class="bi bi-arrow-repeat fs-5"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                                <strong class="text-dark" style="font-size: 0.95rem;">
+                                    <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>Remplacement de matériel détecté
+                                </strong>
+                                <span class="badge bg-warning text-dark font-monospace" style="font-size: 0.7rem;">Règle d'unicité DSI</span>
+                            </div>
+                            <p class="small text-muted mb-2">
+                                Ce collaborateur détient déjà un équipement actif dans cette catégorie :
+                                <span class="fw-bold text-dark" id="conflictDeviceName">-</span>
+                            </p>
+
+                            <div class="card p-3 border-0 bg-white shadow-sm rounded-3 mt-2">
+                                <label class="form-label fw-bold small text-dark mb-2">
+                                    Que souhaitez-vous faire de l'ancien équipement lors de cette attribution ?
+                                </label>
+                                
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="old_equipment_action" id="actionStock" value="stock" checked onchange="toggleReassignSelect(this.value)">
+                                    <label class="form-check-label small" for="actionStock">
+                                        📦 <strong>Remettre l'ancien matériel en stock</strong> (statut remis à <em>« En stock »</em> et attribution clôturée).
+                                    </label>
+                                </div>
+
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="old_equipment_action" id="actionReassign" value="reassign" onchange="toggleReassignSelect(this.value)">
+                                    <label class="form-check-label small" for="actionReassign">
+                                        🔄 <strong>Transférer immédiatement l'ancien matériel à un autre collaborateur</strong>
+                                    </label>
+                                </div>
+
+                                <div id="reassignSelectWrapper" class="ms-4 mt-2 d-none">
+                                    <label class="form-label small text-muted mb-1">Sélectionnez le nouveau bénéficiaire de l'ancien matériel :</label>
+                                    <select name="reassign_personnel_id" id="reassignPersonnelSelect" class="form-select form-select-sm">
+                                        <option value="">-- Choisir un collaborateur --</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ══════════════════════════════════════════════════════════
+                     SECTION 3 : PÉRIODE ET STATUT
+                     ══════════════════════════════════════════════════════════ -->
+                <div class="form-section-title mb-3">
+                    <i class="bi bi-calendar-range"></i>
+                    <span>3. Modalités du Prêt / Dotation</span>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-12 col-md-4">
+                        {{ form_label(form.dateDebut) }}
+                        {{ form_widget(form.dateDebut) }}
+                        {{ form_errors(form.dateDebut) }}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        {{ form_label(form.dateFinPrevue) }}
+                        {{ form_widget(form.dateFinPrevue) }}
+                        {{ form_errors(form.dateFinPrevue) }}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        {{ form_label(form.statut) }}
+                        {{ form_widget(form.statut) }}
+                        {{ form_errors(form.statut) }}
+                    </div>
+                </div>
+
+                <!-- ══════════════════════════════════════════════════════════
+                     SECTION 4 : MOTIF & OBSERVATIONS
+                     ══════════════════════════════════════════════════════════ -->
+                <div class="form-section-title mb-3">
+                    <i class="bi bi-file-earmark-check"></i>
+                    <span>4. Motif & Observations</span>
+                </div>
+
+                <div class="mb-3">
+                    {{ form_label(form.motif) }}
+                    {{ form_widget(form.motif) }}
+                    {{ form_errors(form.motif) }}
+                </div>
+
+                <div class="mb-4">
+                    {{ form_label(form.notes) }}
+                    {{ form_widget(form.notes) }}
+                    {{ form_errors(form.notes) }}
+                </div>
+
+                <!-- Actions du formulaire -->
+                <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                    <a href="{{ path('app_attribution_index') }}" class="btn btn-outline-secondary px-4">
+                        <i class="bi bi-x-lg me-1"></i> Annuler
+                    </a>
+                    <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 shadow" data-shortcut="v" title="Raccourci : V">
+                        <i class="bi bi-check2-circle fs-5"></i>
+                        <span>{{ button_label }}</span>
+                    </button>
+                </div>
+
+                {{ form_end(form) }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleReassignSelect(val) {
+        var wrapper = document.getElementById('reassignSelectWrapper');
+        if (wrapper) {
+            wrapper.classList.toggle('d-none', val !== 'reassign');
+        }
+    }
+
+    function populateReassignOptions(currentPersonnelId) {
+        var pSelect = document.getElementById('attribution_personnel');
+        var reassignSelect = document.getElementById('reassignPersonnelSelect');
+        if (!pSelect || !reassignSelect) return;
+
+        var currentSelected = reassignSelect.value;
+        reassignSelect.innerHTML = '<option value="">-- Choisir un collaborateur bénéficiaire --</option>';
+
+        Array.from(pSelect.options).forEach(function(opt) {
+            if (!opt.value || opt.value === String(currentPersonnelId)) return;
+            var newOpt = document.createElement('option');
+            newOpt.value = opt.value;
+            newOpt.textContent = opt.textContent;
+            if (newOpt.value === currentSelected) newOpt.selected = true;
+            reassignSelect.appendChild(newOpt);
+        });
+    }
+
+    function checkAttributionConflict() {
+        var eqSelect = document.getElementById('attribution_equipement');
+        var pSelect = document.getElementById('attribution_personnel');
+        var notice = document.getElementById('conflictNoticeBlock');
+        var deviceSpan = document.getElementById('conflictDeviceName');
+
+        if (!eqSelect || !pSelect || !notice) return;
+
+        var eqOpt = eqSelect.selectedOptions ? eqSelect.selectedOptions[0] : null;
+        var pOpt = pSelect.selectedOptions ? pSelect.selectedOptions[0] : null;
+
+        if (!eqOpt || !eqOpt.value || !pOpt || !pOpt.value) {
+            notice.classList.add('d-none');
+            return;
+        }
+
+        var eqFamily = eqOpt.getAttribute('data-family') || 'other';
+
+        // Seules les catégories individuelles (laptop, bureau, imprimante) sont restreintes — un collaborateur peut avoir 1 laptop + 1 bureau simultanément
+        if (eqFamily !== 'laptop' && eqFamily !== 'desktop' && eqFamily !== 'printer') {
+            notice.classList.add('d-none');
+            return;
+        }
+
+        var rawDevices = pOpt.getAttribute('data-devices');
+        if (!rawDevices) {
+            notice.classList.add('d-none');
+            return;
+        }
+
+        try {
+            var devices = JSON.parse(rawDevices);
+            var conflicting = devices.find(function(d) {
+                return d.family === eqFamily && String(d.id) !== String(eqOpt.value);
+            });
+
+            if (conflicting) {
+                notice.classList.remove('d-none');
+                if (deviceSpan) {
+                    deviceSpan.textContent = conflicting.nom + ' (' + conflicting.catNom + ' - S/N: ' + (conflicting.sn || '—') + ')';
+                }
+                populateReassignOptions(pOpt.value);
+            } else {
+                notice.classList.add('d-none');
+            }
+        } catch (e) {
+            notice.classList.add('d-none');
+        }
+    }
+
+    function onPersonnelChange(select) {
+        var opt = select.selectedOptions ? select.selectedOptions[0] : null;
+        var preview = document.getElementById('personnelCardPreview');
+        var inputNom = document.getElementById('attribution_beneficiaireNom');
+        var inputService = document.getElementById('attribution_beneficiaireService');
+
+        if (!opt || !opt.value) {
+            if (preview) preview.classList.add('d-none');
+            checkAttributionConflict();
+            return;
+        }
+
+        var nom = opt.getAttribute('data-nom') || '';
+        var service = opt.getAttribute('data-service') || '';
+        var matricule = opt.getAttribute('data-matricule') || '';
+        var type = opt.getAttribute('data-type') || 'Employé';
+        var atts = opt.getAttribute('data-active-atts') || '0';
+
+        // Synchroniser automatiquement les champs texte d'attribution
+        if (inputNom) inputNom.value = nom;
+        if (inputService) inputService.value = service;
+
+        // Mettre à jour la fiche aperçu
+        if (preview) {
+            preview.classList.remove('d-none');
+            document.getElementById('previewPersonnelNom').textContent = nom;
+            document.getElementById('previewPersonnelMatricule').textContent = matricule;
+            document.getElementById('previewPersonnelService').textContent = service ? 'Direction / Service : ' + service : 'Aucun service spécifié';
+            document.getElementById('previewPersonnelAttsCount').textContent = atts;
+
+            var typeBadge = document.getElementById('previewPersonnelTypeBadge');
+            if (typeBadge) {
+                typeBadge.className = 'badge rounded-pill px-2 py-1 ';
+                if (type === 'Employé') {
+                    typeBadge.className += 'bg-success-subtle text-success border border-success-subtle';
+                    typeBadge.innerHTML = '👔 Employé';
+                } else if (type === 'Prestataire') {
+                    typeBadge.className += 'bg-primary-subtle text-primary border border-primary-subtle';
+                    typeBadge.innerHTML = '💼 Prestataire';
+                } else if (type === 'Stagiaire') {
+                    typeBadge.className += 'bg-purple-subtle text-purple border';
+                    typeBadge.style.color = '#9333ea';
+                    typeBadge.innerHTML = '🎓 Stagiaire';
+                } else if (type === 'Visiteur') {
+                    typeBadge.className += 'bg-warning-subtle text-warning border border-warning-subtle';
+                    typeBadge.innerHTML = '🏷️ Visiteur';
+                } else {
+                    typeBadge.className += 'bg-secondary-subtle text-secondary border';
+                    typeBadge.innerHTML = type;
+                }
+            }
+        }
+
+        checkAttributionConflict();
+    }
+
+    function initAttributionForm() {
+        var pSelect = document.getElementById('attribution_personnel');
+        var eqSelect = document.getElementById('attribution_equipement');
+
+        if (pSelect) {
+            pSelect.addEventListener('change', function() { onPersonnelChange(this); });
+            if (pSelect.value) {
+                onPersonnelChange(pSelect);
+            }
+        }
+
+        if (eqSelect) {
+            eqSelect.addEventListener('change', checkAttributionConflict);
+        }
+
+        checkAttributionConflict();
+
+        // Si pas de personnel sélectionné mais que des valeurs manuelles existent déjà
+        var inputNom = document.getElementById('attribution_beneficiaireNom');
+        if (inputNom && inputNom.value && (!pSelect || !pSelect.value)) {
+            var manualBlock = document.getElementById('manualBeneficiaryBlock');
+            if (manualBlock && typeof bootstrap !== 'undefined') {
+                var collapse = new bootstrap.Collapse(manualBlock, { toggle: false });
+                collapse.show();
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', initAttributionForm);
+    document.addEventListener('turbo:load', initAttributionForm);
+</script>
+{% endblock %}

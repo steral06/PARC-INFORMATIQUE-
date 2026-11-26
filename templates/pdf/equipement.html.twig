@@ -1,0 +1,259 @@
+{% extends 'pdf/base_pdf.html.twig' %}
+
+{% block title %}Fiche Équipement — {{ equipement.nom }} | GTAC2A-IARDT{% endblock %}
+{% block doc_title %}FICHE ÉQUIPEMENT{% endblock %}
+
+{% block body %}
+
+{# ─── Titre de la fiche ──────────────────────────────────────── #}
+<div style="margin-bottom: 12px;">
+    <div style="font-size: 14pt; font-weight: bold; color: #121212;">{{ equipement.nom }}</div>
+    <div class="small text-muted">
+        {{ equipement.marque }} &bull; {{ equipement.modele }}
+        &bull; S/N : <span class="mono text-bold">{{ equipement.numeroSerie }}</span>
+    </div>
+</div>
+
+{# ═════════════════════════════════════════════════════════════════
+   SECTION 1 : Spécifications Techniques
+═══════════════════════════════════════════════════════════════════ #}
+<div class="section-title">1. Spécifications Techniques</div>
+<table class="info-table">
+    <tr>
+        <td class="label">Numéro de série (S/N)</td>
+        <td class="value mono">{{ equipement.numeroSerie }}</td>
+    </tr>
+    <tr>
+        <td class="label">Code inventaire (Tag)</td>
+        <td class="value mono">{{ equipement.tagInventaire ?? '—' }}</td>
+    </tr>
+    <tr>
+        <td class="label">Marque / Fabricant</td>
+        <td class="value">{{ equipement.marque }}</td>
+    </tr>
+    <tr>
+        <td class="label">Modèle</td>
+        <td class="value">{{ equipement.modele }}</td>
+    </tr>
+    <tr>
+        <td class="label">Catégorie</td>
+        <td class="value">{{ equipement.categorie ? equipement.categorie.nomCat : 'Non classé' }}</td>
+    </tr>
+    <tr>
+        <td class="label">Emplacement / Lieu</td>
+        <td class="value">{{ equipement.lieu ? equipement.lieu.nomLieu : 'Non affecté' }}</td>
+    </tr>
+    <tr>
+        <td class="label">Adresse IP réseau</td>
+        <td class="value">
+            {% if equipement.adresseIp %}
+                <span class="mono">{{ equipement.adresseIp }}</span>
+            {% else %}
+                <span class="text-muted">Non configurée</span>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <td class="label">Système d'exploitation</td>
+        <td class="value">{{ equipement.systemeExploitation ?? 'Non renseigné' }}</td>
+    </tr>
+    <tr>
+        <td class="label">Statut opérationnel</td>
+        <td class="value">
+            {% if equipement.statut == 'En service' %}
+                <span class="badge badge-success">En service</span>
+            {% elseif equipement.statut == 'En stock' %}
+                <span class="badge badge-secondary">En stock</span>
+            {% elseif equipement.statut == 'En panne' %}
+                <span class="badge badge-danger">En panne</span>
+            {% else %}
+                <span class="badge badge-warning">{{ equipement.statut }}</span>
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+{# ═════════════════════════════════════════════════════════════════
+   SECTION 2 : Informations Financières & Garantie
+═══════════════════════════════════════════════════════════════════ #}
+<div class="section-title">2. Informations Financières & Garantie</div>
+<table class="info-table">
+    <tr>
+        <td class="label">Date d'acquisition</td>
+        <td class="value">{{ equipement.dateAcquisition ? equipement.dateAcquisition|date('d/m/Y') : 'Non renseignée' }}</td>
+    </tr>
+    <tr>
+        <td class="label">Âge de l'équipement</td>
+        <td class="value">
+            {% if equipement.ageAnnees is not null %}
+                {{ equipement.ageAnnees }} an(s)
+                {% if equipement.isObsolete %}
+                    <span class="badge badge-danger">Obsolète (&ge; 5 ans)</span>
+                {% elseif equipement.isVieillissant %}
+                    <span class="badge badge-warning">Vieillissant (3-5 ans)</span>
+                {% else %}
+                    <span class="badge badge-success">Récent</span>
+                {% endif %}
+            {% else %}
+                <span class="text-muted">Non calculable</span>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <td class="label">Fin de garantie</td>
+        <td class="value">
+            {% if equipement.finGarantie %}
+                {{ equipement.finGarantie|date('d/m/Y') }}
+                {% if equipement.finGarantie|date('Y-m-d') < 'now'|date('Y-m-d') %}
+                    <span class="badge badge-danger">Expirée</span>
+                {% else %}
+                    <span class="badge badge-success">Valide</span>
+                {% endif %}
+            {% else %}
+                N/C
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <td class="label">Prix d'achat</td>
+        <td class="value text-bold">{{ equipement.prixAchat ? (equipement.prixAchat|number_format(0, ',', ' ') ~ ' FCFA') : 'N/C' }}</td>
+    </tr>
+</table>
+
+{# ═════════════════════════════════════════════════════════════════
+   SECTION 3 : Historique des Utilisateurs / Attributions
+═══════════════════════════════════════════════════════════════════ #}
+<div class="section-title">3. Historique des Utilisateurs ({{ attributions|length }} attribution(s))</div>
+
+{% if attributions is empty %}
+    <div class="notes-box text-muted text-center">Aucune attribution enregistrée pour cet équipement.</div>
+{% else %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Bénéficiaire</th>
+                <th>Service</th>
+                <th>Statut</th>
+                <th>Début</th>
+                <th>Fin / Restitution</th>
+                <th>Motif</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for att in attributions %}
+                <tr>
+                    <td class="text-bold">{{ att.beneficiaireNom }}</td>
+                    <td>{{ att.beneficiaireService ?? '—' }}</td>
+                    <td>
+                        {% if att.statut == 'En cours' %}
+                            <span class="badge badge-success">En cours</span>
+                        {% elseif att.statut == 'Restitué' %}
+                            <span class="badge badge-secondary">Restitué</span>
+                        {% else %}
+                            <span class="badge badge-orange">{{ att.statut }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ att.dateDebut|date('d/m/Y') }}</td>
+                    <td>
+                        {% if att.dateRestitution %}
+                            {{ att.dateRestitution|date('d/m/Y') }}
+                        {% elseif att.dateFinPrevue %}
+                            <span class="text-muted">Prévue : {{ att.dateFinPrevue|date('d/m/Y') }}</span>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td class="small">{{ att.motif ?? '—' }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+{# ═════════════════════════════════════════════════════════════════
+   SECTION 4 : Tickets de Maintenance
+═══════════════════════════════════════════════════════════════════ #}
+<div class="section-title">4. Maintenance & SAV ({{ tickets|length }} ticket(s))</div>
+
+{% if tickets is empty %}
+    <div class="notes-box text-muted text-center">Aucune intervention de maintenance enregistrée.</div>
+{% else %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Titre</th>
+                <th>Priorité</th>
+                <th>Statut</th>
+                <th>Technicien</th>
+                <th style="text-align: right;">Coût</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in tickets %}
+                <tr>
+                    <td>{{ t.dateCreation|date('d/m/Y') }}</td>
+                    <td class="text-bold">{{ t.titre }}</td>
+                    <td>
+                        {% if t.priorite == 'Critique' %}
+                            <span class="badge badge-danger">{{ t.priorite }}</span>
+                        {% elseif t.priorite == 'Haute' %}
+                            <span class="badge badge-warning">{{ t.priorite }}</span>
+                        {% else %}
+                            <span class="badge badge-info">{{ t.priorite }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if t.statut == 'Résolu' %}
+                            <span class="badge badge-success">{{ t.statut }}</span>
+                        {% else %}
+                            <span class="badge badge-orange">{{ t.statut }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ t.technicien ?? '—' }}</td>
+                    <td class="text-right">{{ t.cout ? (t.cout|number_format(0, ',', ' ') ~ ' F') : '—' }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+{# ═════════════════════════════════════════════════════════════════
+   SECTION 5 : Composants Internes
+═══════════════════════════════════════════════════════════════════ #}
+{% if composants|length > 0 %}
+    <div class="section-title">5. Composants Internes ({{ composants|length }})</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Désignation</th>
+                <th>Type</th>
+                <th>S/N</th>
+                <th>Qté</th>
+                <th style="text-align: right;">Prix unitaire</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in composants %}
+                <tr>
+                    <td class="text-bold">{{ c.nom }}</td>
+                    <td>{{ c.type }}</td>
+                    <td class="mono small">{{ c.numeroSerie ?? '—' }}</td>
+                    <td>{{ c.quantite }}</td>
+                    <td class="text-right">{{ c.prixAchat ? (c.prixAchat|number_format(0, ',', ' ') ~ ' F') : '—' }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+{# ═════════════════════════════════════════════════════════════════
+   Notes techniques
+═══════════════════════════════════════════════════════════════════ #}
+{% if equipement.notes %}
+    <div class="section-title">Notes & Observations</div>
+    <div class="notes-box">{{ equipement.notes }}</div>
+{% endif %}
+
+{% endblock %}
+

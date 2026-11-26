@@ -1,0 +1,36 @@
+/* À coller à la fin de assets/styles/app.css */
+
+/* Ligne sélectionnée au clavier (compatible tableaux Bootstrap 5.3) */
+tr.is-selected > * {
+    --bs-table-bg-state: rgba(228, 112, 0, 0.18);
+}
+tr.is-selected > :first-child {
+    box-shadow: inset 4px 0 0 #E47000, inset 0 0 0 9999px rgba(228, 112, 0, 0.18);
+}
+
+/* Petit message en bas à droite */
+.shortcut-hint {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 2000;
+    max-width: 22rem;
+    padding: 0.6rem 0.9rem;
+    border-radius: 0.4rem;
+    background: #1E1E1E;
+    color: #fff;
+    font-size: 0.875rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+.shortcut-hint.is-visible {
+    opacity: 1;
+}
+
+/* Touches affichées dans l'aide */
+kbd {
+    background: #1E1E1E;
+    color: #fff;
+    border-bottom: 2px solid #E47000;
+}

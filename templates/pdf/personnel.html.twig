@@ -1,0 +1,225 @@
+{% extends 'pdf/base_pdf.html.twig' %}
+
+{% block title %}Fiche Personnel — {{ personnel.nom }} | GTAC2A-IARDT{% endblock %}
+{% block doc_title %}FICHE PERSONNEL{% endblock %}
+
+{% block extra_styles %}
+    .avatar-box {
+        display: inline-block;
+        width: 50px;
+        height: 50px;
+        background: #E47000;
+        color: #fff;
+        font-size: 18pt;
+        font-weight: bold;
+        text-align: center;
+        line-height: 50px;
+        border-radius: 25px;
+        margin-right: 10px;
+        vertical-align: middle;
+    }
+{% endblock %}
+
+{% block body %}
+
+{# ─── Titre de la fiche ──────────────────────────────────────── #}
+<div style="margin-bottom: 12px;">
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="width: 65px; vertical-align: middle;">
+                <div class="avatar-box">
+                    {{ personnel.nom|split(' ')|map(w => w|slice(0,1))|join('')|upper|slice(0,2) }}
+                </div>
+            </td>
+            <td style="vertical-align: middle;">
+                <div style="font-size: 14pt; font-weight: bold; color: #121212;">{{ personnel.nom }}</div>
+                <div class="small text-muted">
+                    <span class="mono text-bold">{{ personnel.matricule }}</span>
+                    &bull; {{ personnel.type }}
+                    {% if personnel.service %}&bull; {{ personnel.service }}{% endif %}
+                </div>
+            </td>
+            <td style="text-align: right; vertical-align: middle;">
+                {% if personnel.statut == 'Actif' %}
+                    <span class="badge badge-success">Actif</span>
+                {% elseif personnel.statut == 'Inactif' %}
+                    <span class="badge badge-secondary">Inactif</span>
+                {% else %}
+                    <span class="badge badge-warning">{{ personnel.statut }}</span>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+</div>
+
+{# ═════════════════════════════════════════════════════════════════
+   SECTION 1 : Identité du Collaborateur
+═══════════════════════════════════════════════════════════════════ #}
+<div class="section-title">1. Identité du Collaborateur</div>
+<table class="info-table">
+    <tr>
+        <td class="label">Matricule</td>
+        <td class="value mono text-bold">{{ personnel.matricule }}</td>
+    </tr>
+    <tr>
+        <td class="label">Nom complet</td>
+        <td class="value text-bold">{{ personnel.nom }}</td>
+    </tr>
+    <tr>
+        <td class="label">Type de contrat</td>
+        <td class="value">
+            {% if personnel.type == 'Employé' %}
+                <span class="badge badge-success">Employé (Salarié)</span>
+            {% elseif personnel.type == 'Prestataire' %}
+                <span class="badge badge-info">Prestataire & Consultant</span>
+            {% elseif personnel.type == 'Stagiaire' %}
+                <span class="badge" style="background: rgba(147,51,234,.12); color: #9333ea;">Stagiaire / Alternant</span>
+            {% elseif personnel.type == 'Visiteur' %}
+                <span class="badge badge-orange">Visiteur</span>
+            {% else %}
+                {{ personnel.type }}
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <td class="label">Service / Direction</td>
+        <td class="value">{{ personnel.service ?? '—' }}</td>
+    </tr>
+    <tr>
+        <td class="label">Adresse e-mail</td>
+        <td class="value">{{ personnel.email ?? '—' }}</td>
+    </tr>
+    <tr>
+        <td class="label">Téléphone</td>
+        <td class="value">{{ personnel.telephone ?? '—' }}</td>
+    </tr>
+    <tr>
+        <td class="label">Date d'enregistrement</td>
+        <td class="value">{{ personnel.dateAjout|date('d/m/Y') }}</td>
+    </tr>
+    <tr>
+        <td class="label">Statut</td>
+        <td class="value">
+            {% if personnel.statut == 'Actif' %}
+                <span class="badge badge-success">Actif</span>
+            {% elseif personnel.statut == 'Inactif' %}
+                <span class="badge badge-secondary">Inactif</span>
+            {% else %}
+                <span class="badge badge-warning">{{ personnel.statut }}</span>
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+{# ═════════════════════════════════════════════════════════════════
+   SECTION 2 : Équipements actuellement en dotation
+═══════════════════════════════════════════════════════════════════ #}
+<div class="section-title">2. Équipements en Dotation ({{ attributions_actives|length }})</div>
+
+{% if attributions_actives is empty %}
+    <div class="notes-box text-muted text-center">Aucun équipement actuellement attribué à ce collaborateur.</div>
+{% else %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Équipement</th>
+                <th>Catégorie</th>
+                <th>S/N / Tag</th>
+                <th>Adresse IP</th>
+                <th>Depuis le</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for att in attributions_actives %}
+                {% set eq = att.equipement %}
+                <tr>
+                    <td class="text-bold">{{ eq ? eq.nom : 'Équipement supprimé' }}</td>
+                    <td>{{ eq and eq.categorie ? eq.categorie.nomCat : '—' }}</td>
+                    <td class="mono small">
+                        {% if eq %}
+                            {{ eq.tagInventaire ?? eq.numeroSerie ?? '—' }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td class="mono small">
+                        {% if eq and eq.adresseIp %}
+                            {{ eq.adresseIp }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>{{ att.dateDebut|date('d/m/Y') }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+{# ═════════════════════════════════════════════════════════════════
+   SECTION 3 : Historique des Attributions Passées
+═══════════════════════════════════════════════════════════════════ #}
+<div class="section-title">3. Historique des Attributions ({{ attributions_historique|length }})</div>
+
+{% if attributions_historique is empty %}
+    <div class="notes-box text-muted text-center">Aucun historique d'équipement passé pour ce collaborateur.</div>
+{% else %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Équipement</th>
+                <th>Catégorie</th>
+                <th>Statut</th>
+                <th>Début</th>
+                <th>Restitution</th>
+                <th>Motif</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for att in attributions_historique %}
+                {% set eq = att.equipement %}
+                <tr>
+                    <td class="text-bold">{{ eq ? eq.nom : 'Équipement supprimé' }}</td>
+                    <td>{{ eq and eq.categorie ? eq.categorie.nomCat : '—' }}</td>
+                    <td>
+                        {% if att.statut == 'Restitué' %}
+                            <span class="badge badge-secondary">Restitué</span>
+                        {% elseif att.statut == 'Prolongé' %}
+                            <span class="badge badge-orange">Prolongé</span>
+                        {% else %}
+                            <span class="badge badge-info">{{ att.statut }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ att.dateDebut|date('d/m/Y') }}</td>
+                    <td>{{ att.dateRestitution ? att.dateRestitution|date('d/m/Y') : '—' }}</td>
+                    <td class="small">{{ att.motif ?? '—' }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+{# ═════════════════════════════════════════════════════════════════
+   Récapitulatif
+═══════════════════════════════════════════════════════════════════ #}
+<div class="mt-2" style="border-top: 2px solid #E47000; padding-top: 8px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 9pt;">
+        <tr>
+            <td>
+                <span class="text-bold">Synthèse :</span>
+                {{ attributions_actives|length }} équipement(s) actif(s),
+                {{ attributions_historique|length }} restitué(s) ou archivé(s),
+                {{ (attributions_actives|length + attributions_historique|length) }} total.
+            </td>
+        </tr>
+    </table>
+</div>
+
+{# Notes #}
+{% if personnel.notes %}
+    <div class="section-title mt-2">Notes & Observations</div>
+    <div class="notes-box">{{ personnel.notes }}</div>
+{% endif %}
+
+{% endblock %}
+

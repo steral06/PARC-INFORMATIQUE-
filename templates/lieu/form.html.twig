@@ -1,0 +1,62 @@
+{% extends 'base.html.twig' %}
+
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+
+{% block title %}{{ title }} | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+<div class="mb-3 flex-shrink-0">
+    <a href="{{ path('app_lieu_index') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 mb-2">
+        <i class="bi bi-arrow-left"></i>
+        <span>Retour aux emplacements</span>
+    </a>
+    <div class="d-flex align-items-center gap-2">
+        <div class="form-header-badge">
+            <i class="bi bi-geo-alt"></i>
+        </div>
+        <div>
+            <h1 class="h3 fw-bold mb-0" style="color: #121212;">{{ title }}</h1>
+            <p class="text-muted small mb-0">Définissez une agence, un bureau, un étage ou une salle technique GTA</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="card card-form mb-4">
+            <div class="card-body p-4 p-md-5">
+                {{ form_start(form) }}
+
+                <div class="form-section-title">
+                    <i class="bi bi-building"></i>
+                    <span>Informations de l'Emplacement</span>
+                </div>
+
+                <div class="mb-3">
+                    {{ form_label(form.nom_lieu) }}
+                    {{ form_widget(form.nom_lieu) }}
+                    {{ form_errors(form.nom_lieu) }}
+                </div>
+
+                <div class="mb-4">
+                    {{ form_label(form.description) }}
+                    {{ form_widget(form.description) }}
+                    {{ form_errors(form.description) }}
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                    <a href="{{ path('app_lieu_index') }}" class="btn btn-outline-secondary px-4">
+                        <i class="bi bi-x-lg me-1"></i> Annuler
+                    </a>
+                    <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 shadow" data-shortcut="v" title="Raccourci : V">
+                        <i class="bi bi-check2-circle fs-5"></i>
+                        <span>{{ button_label }}</span>
+                    </button>
+                </div>
+
+                {{ form_end(form) }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

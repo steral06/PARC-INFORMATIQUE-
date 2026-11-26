@@ -1,0 +1,1009 @@
+﻿================================================================================
+                    CAHIER DES CHARGES FONCTIONNEL ET TECHNIQUE
+================================================================================
+PROJET           : G-PARC (Système Intégré de Gestion de Parc Informatique & Traçabilité DSI)
+ORGANISATION     : GTAC2A-IARDT (Togo)
+CADRE DU PROJET  : Projet de Fin de Cycle / Mémoire Académique (Informatique de Gestion & Génie Logiciel)
+VERSION          : 2.1 - Finale Enrichie (Export PDF & Inventaire Périodique)
+DATE             : Octobre 2026
+AUTEUR           : Équipe de Conception & Développement
+================================================================================
+
+--------------------------------------------------------------------------------
+HISTORIQUE DES VERSIONS
+--------------------------------------------------------------------------------
+v1.0 - Octobre 2026 : Version initiale (authentification, équipements, composants,
+                       attributions, maintenances, rapports, raccourcis, audit)
+v2.0 - Octobre 2026 : Version enrichie (répertoire Personnel, règles duales laptop/fixe,
+                       transfert IP auto, validation IPv4, rate limiting anti-DDoS).
+v2.1 - Octobre 2026 : Version avancée :
+  - Module Export PDF institutionnel des fiches (Équipement & Personnel via Dompdf)
+  - Module Inventaire Périodique complet (campagnes annuelles de passage en revue)
+  - Feuilles de pointage physique interactives (Conforme, Déplacé, Manquant, Hors service)
+  - Tableau de bord en temps réel du taux de couverture du recensement
+  - Détection automatique et journalisation des écarts d'inventaire
+  - Génération de Procès-Verbaux officiels d'inventaire en PDF format paysage
+  - Clôture formelle de campagne avec figeage des résultats et visas DSI / DG
+
+--------------------------------------------------------------------------------
+TABLE DES MATIÈRES
+--------------------------------------------------------------------------------
+1. INTRODUCTION ET CONTEXTE DU PROJET
+   1.1. Contexte institutionnel (GTAC2A-IARDT)
+   1.2. Problématique constatée
+   1.3. Objectifs généraux et opérationnels
+   1.4. Périmètre du projet (In-Scope / Out-of-Scope)
+
+2. ANALYSE DES ACTEURS ET RÔLES (MATRICE RACI)
+   2.1. Super-Administrateur DSI (ROLE_SUPER_ADMIN)
+   2.2. Gestionnaire de Parc / Opérateur GTA (ROLE_USER)
+   2.3. Collaborateurs et Bénéficiaires finaux (entité Personnel)
+
+3. SPÉCIFICATIONS DES BESOINS FONCTIONNELS
+   3.1.  Module Authentification, Sécurité & Contrôle d'Accès Réseau
+   3.2.  Module Gestion des Équipements & Matériels IT
+   3.3.  Module Gestion des Composants & Pièces Détachées
+   3.4.  Module Gestion des Dotations, Attributions & Prêts
+   3.5.  Module Suivi des Maintenances, Pannes & Coûts SAV
+   3.6.  Module Centre de Rapports & Exports Multi-formats (Excel / CSV)
+   3.7.  Module Tableau de Bord & Indicateurs Décisionnels (KPIs)
+   3.8.  Module Navigation Clavier & Raccourcis (Shortcuts)
+   3.9.  Module Journal d'Audit & Intégrité des Données (Super-Admin)
+   3.10. Module Répertoire du Personnel & Fiches Collaborateurs [NOUVEAU v2.0]
+   3.11. Module Sécurité Avancée : Rate Limiting Anti-DDoS [NOUVEAU v2.0]
+   3.12. Module Export PDF Institutionnel des Fiches [NOUVEAU v2.1]
+   3.13. Module Inventaire Périodique & Détection d'Écarts [NOUVEAU v2.1]
+     3.14. Module Préparation & Vérification Pas-à-Pas (Checklist & Sauvegarde) [NOUVEAU v2.2]
+
+4. SPÉCIFICATIONS DES BESOINS NON-FONCTIONNELS
+   4.1. Sécurité et intégrité des données
+   4.2. Performance, réactivité et expérience utilisateur (SPA avec Turbo)
+   4.3. Ergonomie, UI/UX et identité visuelle
+   4.4. Maintenabilité et respect des normes logicielles
+   4.5. Portabilité et stratégie de déploiement "Zero-Config"
+
+5. ARCHITECTURE TECHNIQUE ET ENVIRONNEMENT DE DÉVELOPPEMENT
+   5.1. Stack logicielle retenue (Symfony 7, PHP 8.2+, FrankenPHP)
+   5.2. Architecture applicative (MVC Symfony)
+   5.3. Gestion des dépendances et assets sans Node.js (AssetMapper)
+   5.4. Choix d'Ingénierie : FrankenPHP vs Stack LAMP/LEMP classique
+
+6. MODÉLISATION ET CONCEPTION UML
+   6.1. Diagramme des Cas d'Utilisation
+   6.2. Diagramme de Classes Métier
+   6.3. Modèle Logique des Données (MLD)
+   6.4. Diagrammes de Séquence Système
+   6.5. Diagramme d'Activité : Cycle de vie d'un équipement
+   6.6. Diagramme de Déploiement
+
+7. PLANNING PRÉVISIONNEL ET LIVRABLES DU PROJET
+
+================================================================================
+1. INTRODUCTION ET CONTEXTE DU PROJET
+================================================================================
+
+1.1. Contexte institutionnel
+La compagnie d'assurance GTAC2A-IARDT (Togo) s'appuie sur une infrastructure
+informatique en expansion constante (ordinateurs de bureau, ordinateurs portables,
+serveurs, imprimantes réseau, composants montés, consommables, routeurs).
+La Direction des Systèmes d'Information (DSI) est chargée de garantir la
+continuité de service, la maintenance préventive/curative, ainsi que la conformité
+de l'affectation du matériel aux différents collaborateurs et agences.
+
+1.2. Problématique constatée
+Avant la mise en place de la solution G-PARC, la gestion du parc souffrait de :
+- Une dispersion des informations sur plusieurs fichiers tableurs hétérogènes.
+- Des difficultés à tracer avec certitude "qui utilise quel équipement" à un
+  instant T (bénéficiaire, direction, numéro de série, adresse IP).
+- L'absence d'évaluation financière consolidée et instantanée de la valeur du
+  parc informatique et des pièces détachées en stock.
+- Un manque de visibilité sur la vétusté et l'obsolescence des actifs (matériels
+  de plus de 3 ou 5 ans), exposant l'entreprise à des pannes imprévues.
+- Des risques de sécurité informatique liés aux accès non contrôlés sur le
+  réseau d'administration du parc.
+- Une absence de traçabilité des collaborateurs ayant utilisé un équipement
+  (historique complet inexistant).
+- Un risque de double attribution d'un même type d'équipement à un seul
+  collaborateur (absence de règle de contrôle d'unicité par catégorie).
+
+1.3. Objectifs généraux et opérationnels
+L'application G-PARC a pour objectif principal d'offrir une plateforme web
+centralisée, sécurisée, moderne et réactive pour piloter l'ensemble du cycle
+de vie des actifs informatiques :
+- Centraliser l'inventaire complet des équipements et composants.
+- Gérer un répertoire structuré du personnel avec consultation individuelle.
+- Tracer les attributions, mouvements et restitutions de machines.
+- Appliquer des règles métier intelligentes d'attribution (unicité par famille).
+- Transférer automatiquement l'identité réseau (IP, code inventaire) lors
+  du remplacement d'équipement d'un collaborateur.
+- Faciliter le diagnostic des pannes et comptabiliser les dépenses SAV.
+- Fournir un générateur de bilans sur mesure avec export Excel propriétaire.
+- Restreindre l'accès à l'application par filtrage d'adresses IP autorisées
+  et double authentification par code PIN numérique.
+- Protéger l'application contre les attaques par force brute et DDoS (rate limiting).
+- Assurer une portabilité et un déploiement autonome "Zero-Config".
+
+1.4. Périmètre du projet
+- IN-SCOPE :
+  * Gestion complète des équipements IT, catégories et lieux d'implantation.
+  * Gestion des stocks de composants (RAM, disques, cartes, consommables).
+  * Répertoire du personnel (Employés, Prestataires, Stagiaires, Visiteurs).
+  * Enregistrement des dotations et historique complet des bénéficiaires.
+  * Règles d'attribution par famille de catégories (laptop, bureau, imprimante).
+  * Transfert automatique de l'adresse IP et du code inventaire lors du swap.
+  * Suivi des interventions de maintenance et calcul des coûts cumulés.
+  * Filtrage strict par adresses IP clientes et code PIN à 4 chiffres.
+  * Rate Limiting par route et par IP (anti-DDoS, anti-brute-force).
+  * Exports Excel (.xls compatible XML Spreadsheet) et CSV configurables.
+  * Tableaux de bord dynamiques avec indicateurs d'âge, disponibilité et valeur.
+  * Journal d'audit complet avec interface de consultation Super-Admin.
+- OUT-OF-SCOPE (versions ultérieures) :
+  * Télédistribution d'agents SNMP / OCS Inventory automatique sur les postes.
+  * Intégration comptable directe avec le progiciel ERP de paye.
+  * Module de notifications par e-mail automatiques (alertes d'obsolescence).
+  * Application mobile native (iOS / Android).
+
+================================================================================
+2. ANALYSE DES ACTEURS ET RÔLES (MATRICE RACI)
+================================================================================
+
+2.1. Super-Administrateur DSI (ROLE_SUPER_ADMIN)
+- Responsable de la gouvernance de sécurité et de l'administration système.
+- Gestion des comptes utilisateurs (création, réinitialisation de mot de passe).
+- Gestion de la liste blanche des postes autorisés (filtrage strict par adresse IP).
+- Accès complet au journal d'audit et droit de purge maîtrisée.
+- Droits globaux à toutes les fonctionnalités : création, modification,
+  suppression avec protection renforcée.
+
+2.2. Opérateur GTA / Gestionnaire de Parc (ROLE_USER)
+- Technicien ou gestionnaire au sein de la DSI.
+- Consultation et mise à jour quotidienne du parc matériel.
+- Gestion du répertoire personnel (ajout, modification, consultation des fiches).
+- Attribution et restitution des machines aux collaborateurs (avec règles d'unicité).
+- Enregistrement des composants montés ou placés en stock.
+- Saisie des tickets de maintenance et des dépenses de réparation.
+- Extraction des rapports périodiques et bilans d'inventaire.
+- NB : L'opérateur simple ne voit pas la liste des comptes utilisateurs DSI.
+
+2.3. Collaborateur / Bénéficiaire — Entité Personnel (v2.0)
+- Représenté par une entité dédiée `Personnel` en base de données.
+- Identifié par : matricule unique généré automatiquement, nom complet,
+  type (Employé / Prestataire / Stagiaire / Visiteur), service/direction,
+  adresse e-mail, numéro de téléphone, statut (Actif / Inactif / Suspendu).
+- Fiche individuelle consultable : liste des équipements en dotation et
+  historique complet des machines passées.
+
+================================================================================
+3. SPÉCIFICATIONS DES BESOINS FONCTIONNELS
+================================================================================
+
+3.1. Module Authentification, Sécurité & Contrôle d'Accès Réseau
+- AUTH-01 : Authentification standard par identifiant et mot de passe chiffré (bcrypt).
+- AUTH-02 : Double authentification obligatoire (2FA) par code PIN numérique
+  saisi sur un clavier virtuel sécurisé à l'écran.
+- AUTH-03 : Filtrage d'accès par IP cliente. Si l'IP de la machine cliente ne
+  figure pas parmi les postes autorisés déclarés par le Superadmin, l'accès à
+  l'application est immédiatement bloqué avec une page d'alerte sécurité.
+- AUTH-04 : Session Guard asynchrone (vérification continue en arrière-plan
+  du statut de l'autorisation de la machine).
+- AUTH-05 [v2.0] : Rate Limiting sur les routes critiques (login, PIN 2FA).
+  Un nombre maximal de tentatives par IP est appliqué par fenêtre glissante
+  (ex: 10 tentatives / 1 minute). Au dépassement, réponse HTTP 429 avec
+  délai de blocage et message explicite.
+
+3.2. Module Gestion des Équipements & Matériels IT
+- MAT-01 : Création, modification, consultation et suppression d'un équipement.
+- MAT-02 : Enregistrement des informations clés : Désignation, Marque, Modèle,
+  Numéro de série (S/N unique), Tag d'inventaire GTAC2A, Adresse IP réseau,
+  Catégorie, Emplacement physique/Lieu, Statut opérationnel, Date d'acquisition,
+  Fin de garantie, Prix d'achat unitaire, Système d'exploitation, Notes techniques.
+- MAT-03 : Statuts opérationnels : "En service", "En stock", "En panne", "Prêté",
+  "Au rebut".
+- MAT-04 : Calcul dynamique et automatique de l'âge et de la vétusté :
+  * Récent : moins de 3 ans.
+  * Vieillissant : entre 3 et 5 ans.
+  * Obsolète : supérieur ou égal à 5 ans.
+- MAT-05 : Recherche universelle multi-critères instantanée.
+- MAT-06 [v2.0] : Champ adresse IP avec validation de format IPv4 (masque de
+  saisie en blocs numériques séparés par des points, contrôle de plage 0-255).
+  Aucune lettre n'est acceptée dans ce champ.
+- MAT-07 [v2.0] : Lors de la modification d'un équipement, la catégorie
+  précédemment enregistrée est pré-remplie dans le formulaire afin d'éviter
+  toute perte d'information involontaire.
+- MAT-08 : Fiche détaillée de l'équipement (/equipements/{id}) : spécifications
+  techniques, historique complet des bénéficiaires, tickets de maintenance.
+- MAT-09 [v2.0] : Attribution rapide depuis la fiche équipement avec formulaire
+  modal intégré, détection de conflits de catégorie et options de remplacement.
+
+3.3. Module Gestion des Composants & Pièces Détachées
+- COMP-01 : Enregistrement des pièces : type (RAM, Disque dur, SSD, Carte réseau,
+  Consommable), désignation, quantité disponible, prix unitaire, valeur totale.
+- COMP-02 : Association d'un composant à un équipement (composant monté) ou
+  stockage dans une réserve/armoire DSI.
+- COMP-03 : Déduction automatique des stocks et valorisation financière.
+
+3.4. Module Gestion des Dotations, Attributions & Prêts
+- DOT-01 : Attribution d'une machine disponible à un collaborateur GTAC2A.
+- DOT-02 : Suivi des dates : date de début, date de restitution prévue,
+  date de restitution effective.
+- DOT-03 : Statuts d'attribution : "En cours", "Restitué", "Prolongé".
+- DOT-04 : Mise à jour synchronisée du statut de la machine.
+- DOT-05 [v2.0] : Règle d'unicité par famille de catégories. Un collaborateur
+  ne peut pas détenir deux équipements de la même famille simultanément, selon
+  les règles suivantes :
+  * FAMILY_LAPTOP (Ordinateurs Portables) : maximum 1 par collaborateur.
+  * FAMILY_DESKTOP (Unités Centrales / PC Fixes) : maximum 1 par collaborateur.
+  * FAMILY_PRINTER (Imprimantes & Scanners) : maximum 1 par collaborateur.
+  * EXCEPTION : Un collaborateur peut détenir simultanément 1 LAPTOP + 1 DESKTOP
+    (ex: Directeur DSI, Chef de service). Ce sont deux familles distinctes.
+  * FAMILY_OTHER (Serveurs, Onduleurs, Réseau, Écrans) : illimité, car une
+    seule personne DSI peut piloter plusieurs de ces équipements.
+- DOT-06 [v2.0] : Gestion intelligente du remplacement d'équipement.
+  Lorsqu'un collaborateur possède déjà un équipement de la même famille et
+  qu'on lui en attribue un nouveau, le système propose une notice d'avertissement
+  avec trois options :
+  a) Mettre l'ancien en stock (retrait de dotation).
+  b) Réaffecter l'ancien à un autre collaborateur simultanément.
+  c) Annuler l'opération.
+- DOT-07 [v2.0] : Transfert automatique de l'identité réseau lors du remplacement.
+  Quand un équipement est remplacé, le système recopie automatiquement l'adresse IP
+  (`adresseIp`) et le code inventaire (`tagInventaire`) de l'ancien équipement sur
+  le nouveau, et efface ces champs de l'ancien. Cette opération est tracée dans
+  le journal d'audit et signalée à l'opérateur par un message flash.
+
+3.5. Module Suivi des Maintenances, Pannes & Coûts SAV
+- MAINT-01 : Déclaration d'un ticket d'incident matériel ou panne logicielle.
+- MAINT-02 : Niveaux de priorité : "Faible", "Moyenne", "Haute", "Critique".
+- MAINT-03 : Affectation d'un technicien référent ou prestataire externe SAV.
+- MAINT-04 : Saisie du diagnostic, de la solution technique et des dépenses
+  engagées (coût en Francs CFA).
+- MAINT-05 : Historique complet des interventions sur la fiche de l'équipement.
+- MAINT-06 : Recherche et filtrage des tickets par équipement, statut, priorité.
+
+3.6. Module Centre de Rapports & Exports Multi-formats (Excel / CSV)
+- RAP-01 : Générateur sur mesure : sélection individuelle des colonnes selon
+  4 domaines : Équipement, Dotation/Utilisateur, Composants, Maintenances.
+- RAP-02 : Export Excel (.xls XML Spreadsheet) avec en-tête GTAC2A-IARDT,
+  couleur orange corporate (#E47000), colonnes typées.
+- RAP-03 : Mode "Bilan Global Unifié 360°".
+- RAP-04 : Export CSV (délimiteur point-virgule, encodage UTF-8).
+- RAP-05 [v2.0] : Filtre du bilan global : l'opérateur peut filtrer les résultats
+  du bilan global par catégorie, lieu, statut ou période avant génération/export,
+  afin de produire des rapports ciblés (ex: uniquement les portables en service).
+
+3.7. Module Tableau de Bord & Indicateurs Décisionnels (KPIs)
+- DASH-01 : Valorisation globale du parc (prix d'achat matériels + pièces détachées).
+- DASH-02 : Taux de disponibilité opérationnelle.
+- DASH-03 : Dépenses globales cumulées de maintenance.
+- DASH-04 : Compteurs d'obsolescence (vieillissants et obsolètes).
+- DASH-05 [v2.0] : Cards du tableau de bord en fond blanc (thème clair) pour une
+  lisibilité optimale, contrastées et conformes à la charte graphique.
+- DASH-06 [v2.0] : Indicateur du nombre de collaborateurs actifs dans le personnel
+  (employés, prestataires, stagiaires).
+
+================================================================================
+3.8. Module Navigation Clavier & Raccourcis (Shortcuts)
+================================================================================
+
+3.8.1. Module Raccourcis Clavier Globaux
+- SHORT-01 : Contrôleur Stimulus `shortcuts_controller.js` chargé globalement.
+- SHORT-02 : Détection automatique des éléments `data-shortcut="x"`.
+- SHORT-03 : Respect des droits d'accès côté HTML.
+- SHORT-04 : Désactivation automatique sur pages sensibles (connexion, PIN 2FA).
+- SHORT-05 : Ignorance sur saisie, modales ouvertes, combinaisons navigateur.
+
+Raccourcis de navigation principale (menu latéral) :
+| Touche | Action                           | Restriction            |
+|--------|----------------------------------|------------------------|
+| D      | Dashboard (Tableau de bord)      | Tous                   |
+| E      | Liste des Équipements            | Tous                   |
+| C      | Composants & Pièces              | Tous                   |
+| A      | Attributions & Prêts             | Tous                   |
+| T      | Maintenance & Pannes             | Tous                   |
+| R      | Rapports & Statistiques          | Tous                   |
+| I      | Catégories d'équipements         | Tous                   |
+| L      | Lieux & Salles                   | Tous                   |
+| P      | Postes Autorisés (IP)            | Super-admin uniquement |
+| N [v2.0] | Répertoire du Personnel        | Tous                   |
+| J      | Journal d'Audit                  | Super-admin uniquement |
+| U      | Comptes Utilisateurs DSI         | Super-admin uniquement |
+| ?      | Aide raccourcis (modale)         | Tous                   |
+
+NB [v2.0] : La touche P était initialement allouée au menu "Personnel". Après
+audit des conflits, le raccourci Personnel a été réaffecté à N (Nouveau-Personnel
+/ répertoire) pour ne pas entrer en collision avec la touche P = Postes Autorisés.
+
+3.8.2. Navigation au clavier dans les formulaires
+- SHORT-06 : V → Valider / Enregistrer le formulaire.
+- SHORT-07 : Alt+↓ / Alt+↑ → Champ suivant / précédent.
+- SHORT-08 : / → Focus sur le champ de recherche.
+
+3.8.3. Sélection de lignes au clavier
+- SHORT-09 : ↑ / ↓ → Ligne précédente / suivante.
+- SHORT-10 : M (Modifier), S (Supprimer), V si applicable sur ligne sélectionnée.
+- SHORT-11 : Échap → Désélectionner / fermer modale.
+
+3.8.4. Aide contextuelle
+- SHORT-12 : Modale d'aide (#shortcutsHelp) via ? ou bouton barre supérieure.
+- SHORT-13 : Toast d'indication en bas à droite.
+
+================================================================================
+3.9. Module Journal d'Audit & Intégrité des Données (Super-Admin)
+================================================================================
+
+3.9.1. Enregistrement automatique des actions sensibles
+- AUDIT-01 : Journal (`AuditLog`) pour chaque action métier critique.
+  Actions tracées : CREATE, UPDATE, DELETE, RESET_PASSWORD, RESET_PIN, LOGIN,
+  LOGOUT, AUTH_FAILED, IP_BLOCKED, ATTRIBUTION_REMPLACEMENT [v2.0],
+  TRANSFERT_IP [v2.0].
+- AUDIT-02 : Capture automatique : auteur, type d'entité, détails JSON, IP cliente,
+  horodatage immuable (`DateTimeImmutable`).
+- AUDIT-03 : Indexation BDD sur action, entity_type, user_id, created_at.
+
+3.9.2. Interface de consultation (Super-admin uniquement)
+- AUDIT-04 : Page dédiée /integrite (route app_integrite_index), raccourci J.
+- AUDIT-05 : KPIs temps réel : total, créations, modifications, suppressions.
+- AUDIT-06 : Filtres combinés : action, type d'entité, utilisateur, période.
+- AUDIT-07 : Tableau paginé (max 500 entrées), tri chronologique descendant.
+- AUDIT-08 : Détails JSON formatés dans un <details>/<pre>.
+
+3.9.3. Purge maîtrisée et conformité
+- AUDIT-09 : Purge paramétrable par ancienneté (défaut 90 jours), protection CSRF.
+- AUDIT-10 : Statistiques d'activité DSI : répartition par action et par entité.
+
+================================================================================
+3.10. Module Répertoire du Personnel & Fiches Collaborateurs [NOUVEAU v2.0]
+================================================================================
+
+3.10.1. Entité Personnel
+- PERS-01 : L'entité `Personnel` est une entité métier dédiée représentant les
+  collaborateurs de GTAC2A-IARDT susceptibles de recevoir des équipements.
+  Elle est distincte des comptes utilisateurs DSI (`User`).
+- PERS-02 : Attributs : matricule (unique, généré automatiquement par service),
+  nom complet, type (Employé / Prestataire / Stagiaire / Visiteur), service,
+  adresse email, téléphone, statut (Actif / Inactif / Suspendu), date d'enregistrement,
+  notes libres.
+- PERS-03 : Relation 1-N avec Attribution : un personnel peut avoir plusieurs
+  attributions successives dans le temps (historique complet).
+
+3.10.2. Répertoire du Personnel (/personnel)
+- PERS-04 : Liste paginée et filtrée par type, service, statut et recherche texte.
+- PERS-05 : Tableau avec colonnes : Matricule, Nom (cliquable → fiche), Type, Service,
+  Équipements actifs, Statut, Actions (Consulter, Attribuer, Modifier, Supprimer).
+- PERS-06 : Statistiques rapides : nombre d'employés, prestataires, stagiaires, visiteurs.
+- PERS-07 : Ligne d'expansion au clic : affichage des équipements actuellement
+  en dotation, directement dans la ligne du tableau.
+- PERS-08 : Actions groupées (bulk) : modification du type, service, statut, notes.
+- PERS-09 : Génération automatique du matricule lors de la création, basée sur
+  le préfixe du service (ex: DSI-0042, DG-0003).
+
+3.10.3. Fiche individuelle du Personnel (/personnel/{id}/show)
+- PERS-10 : Page de consultation dédiée en deux colonnes (analogue à la fiche équipement).
+- PERS-11 : Colonne gauche (sticky) : avatar initiales coloré, identité complète
+  (matricule, type, service, email cliquable mailto:, téléphone), compteurs
+  rapides (dotations actives / historique / total), bouton Supprimer (admin).
+- PERS-12 : Colonne droite (scrollable) :
+  a) Section "Équipements en dotation" : liste des équipements actuellement attribués
+     avec icône catégorie, nom cliquable vers la fiche équipement, marque/modèle,
+     code inventaire, adresse IP (si configurée), dates de dotation.
+  b) Section "Historique des attributions" : tous les équipements passés avec
+     statut (Restitué / Prolongé), dates de début et de restitution effective.
+     Les 5 premiers sont affichés, le reste dans un panneau dépliable "Tout voir".
+
+================================================================================
+3.11. Module Sécurité Avancée : Rate Limiting Anti-DDoS [NOUVEAU v2.0]
+================================================================================
+
+- RATE-01 : Implémentation du composant Symfony RateLimiter sur les routes
+  exposées au public ou à fort trafic.
+- RATE-02 : Stratégie "Sliding Window" (fenêtre glissante) sur la route de
+  connexion : 10 requêtes maximum par minute et par adresse IP cliente.
+- RATE-03 : Stratégie "Sliding Window" sur la route de validation PIN 2FA :
+  5 tentatives maximum par 5 minutes.
+- RATE-04 : Stratégie "Fixed Window" sur les routes API/rapport (export Excel,
+  sauvegarde BDD) : 30 requêtes par heure par IP.
+- RATE-05 : Au dépassement du seuil, réponse HTTP 429 (Too Many Requests) avec
+  en-tête Retry-After et message d'information à l'utilisateur.
+- RATE-06 : Toutes les tentatives bloquées par rate limiting sont enregistrées
+  dans le journal d'audit avec l'action RATE_LIMIT_EXCEEDED.
+
+================================================================================
+3.12. Module Export PDF Institutionnel des Fiches [NOUVEAU v2.1]
+================================================================================
+
+- PDF-01 : Moteur de génération PDF natif Symfony basé sur la bibliothèque
+  Dompdf (rendu vectoriel direct depuis templates Twig dédiés).
+- PDF-02 : Fiche Équipement PDF (/equipements/{id}/pdf) :
+  * En-tête institutionnel GTAC2A-IARDT avec filigrane discret.
+  * Bloc Spécifications Techniques complet (S/N, Tag, IP, Marque, Modèle, Catégorie, Lieu).
+  * Bloc Financier & Garantie (date d'achat, fin de garantie, vétusté calculée, prix en FCFA).
+  * Tableau récapitulatif de l'historique complet des utilisateurs et dates d'attribution.
+  * Tableau des tickets de maintenance SAV et coûts cumulés.
+  * Liste des composants internes montés.
+  * Notes techniques et observations.
+- PDF-03 : Fiche Personnel PDF (/personnel/{id}/pdf) :
+  * Avatar initiales institutionnel orange (#E47000).
+  * Identité complète du collaborateur (matricule, type de contrat, direction, email, tél).
+  * Tableau des équipements actuellement en dotation (avec tag et IP).
+  * Tableau chronologique complet des équipements passés (avec statuts et motifs).
+  * Synthèse chiffrée et observations.
+- PDF-04 : Présentation optimisée pour l'impression A4 et l'archivage physique
+  réglementaire (ISO / audit DSI).
+
+================================================================================
+3.13. Module Inventaire Périodique & Détection d'Écarts [NOUVEAU v2.1]
+================================================================================
+
+- INV-01 : Création et gestion de campagnes d'inventaire annuel ou semestriel
+  (`CampagneInventaire`).
+- INV-02 : Injection automatique de l'ensemble des équipements actifs et en stock
+  du parc dans la campagne lors de son lancement (feuille de pointage pré-remplie).
+- INV-03 : Statuts de pointage physique gérés (`LigneInventaire`) :
+  * "Conforme" : matériel présent, fonctionnel et à son emplacement prévu.
+  * "Déplacé" : matériel retrouvé physiquement dans un autre lieu/bureau que celui théorique.
+  * "Manquant" : matériel introuvable lors de la revue physique.
+  * "Hors service" : matériel présent mais hors service / en panne non signalée.
+  * "En attente" : matériel non encore audité.
+- INV-04 : Écran de pointage interactif avec recherche instantanée, filtres
+  combinés par statut et lieu attendu, et modale de pointage rapide.
+- INV-05 : Tableau de bord de campagne en temps réel :
+  * Taux de progression / couverture du recensement (en %).
+  * Compteurs par statut (conformes, déplacés, manquants, hors service, en attente).
+- INV-06 : Rapport dédié des Écarts (/inventaire/{id}/ecarts) isolant l'ensemble
+  des anomalies constatées avec justification et historique de pointage.
+- INV-07 : Traçabilité et audit renforcé : chaque constat d'écart (déplacement,
+  disparition, panne) génère automatiquement une alerte dans le journal d'audit
+  `AuditLog` de niveau WARNING.
+- INV-08 : Clôture formelle de la campagne (réservée Super-Admin / Responsable DSI) :
+  figeage de l'inventaire et horodatage de la fin des opérations.
+- INV-09 : Procès-Verbal Officiel d'Inventaire en PDF format paysage
+  (/inventaire/{id}/pdf) comprenant la synthèse chiffrée, le détail des anomalies
+  et les encadrés de visa / signature pour la DSI et la Direction Générale.
+
+  ================================================================================
+  3.14. Module Préparation & Vérification Pas-à-Pas (Checklist & Sauvegarde) [NOUVEAU v2.2]
+  ================================================================================
+
+  - PREP-01 : Processus guidé pas-à-pas (Stepper interactif) pour la mise en service
+    ou la réattribution de postes informatiques du parc GTAC2A-IARDT.
+  - PREP-02 : Mode contextuel selon le statut physique de la machine :
+    * Machine 'En stock' : Parcours d'installation des 8 prérequis standards (OS,
+      ORASS Netscape/JInit, Office + Activation, WinZip, WinRAR, Kaspersky + Agent,
+      Chrome, Partitionnement disque). L'adresse IPv4 et le code inventaire sont
+      réservés pour l'étape ultérieure d'attribution au collaborateur.
+    * Machine 'En service' : Phase préalable de Sauvegarde intégrale vers disque
+      externe (Disque C Bureau, Documents, dossiers utilisateur, Disque D intégral,
+      et détection de disques/partitions additionnels E:, F:...) suivie de la phase
+      d'installation logicielle.
+  - PREP-03 : Stepper visuel interactif avec pastilles de suivi temps réel (OK, KO,
+    en attente), fil d'Ariane, consignes techniques détaillées et navigation fluide.
+  - PREP-04 : Persistance intégrale en base de données (ChecklistPreparation et
+    ChecklistEtape) horodatée par technicien avec historique consultable depuis
+    la fiche équipement.
+
+================================================================================
+4. SPÉCIFICATIONS DES BESOINS NON-FONCTIONNELS
+================================================================================
+
+4.1. Sécurité et Intégrité
+- Les mots de passe sont hachés avec l'algorithme robuste natif de Symfony.
+- Toutes les actions de suppression sont protégées par jetons CSRF.
+- Filtrage IP strict au niveau du pare-feu applicatif.
+- Protection anti-injection SQL via requêtes préparées Doctrine ORM.
+- Rate Limiting sur routes sensibles (voir §3.11).
+- Les noms d'équipements sont normalisés en base (suppression des suffixes
+  parasites tels que "PRO", etc.).
+
+4.2. Performance et Expérience Utilisateur
+- Turbo Drive : navigation sans rechargement complet (comportement SPA).
+- Temps de réponse des requêtes de recherche < 300 ms.
+- Défilement indépendant des tableaux et des barres d'outils.
+- Navigation clavier complète (raccourcis globaux, formulaires, tableaux).
+
+4.3. Ergonomie et Identité Visuelle
+- Charte GTAC2A-IARDT : Noir profond (#121212 / #1E1E1E) pour la barre latérale,
+  Orange corporate (#E47000) pour les accents.
+- Thème clair : cards du tableau de bord en fond blanc pour une lisibilité maximale.
+- Avatar initiales colorés sur les fiches personnel.
+- Icônes Bootstrap Icons contextuelles (catégorie d'équipement → icône représentative).
+- Badges de type personnel colorés (Employé=vert, Prestataire=bleu,
+  Stagiaire=violet, Visiteur=orange).
+
+4.4. Maintenabilité et Respect des Standards
+- Symfony Best Practices : contrôleurs fins, autowiring, attributs PHP 8 natifs.
+- Architecture MVC (Modèle - Vue - Contrôleur).
+- Code standardisé PSR-12 / @Symfony.
+- Services métier dédiés : `AttributionManager` (règles d'attribution et transfert
+  IP), `ExcelReportGenerator`, `AuditLogger`, `MatriculeGenerator`.
+
+4.5. Portabilité et Stratégie de Déploiement "Zero-Config"
+- Autonomie : déploiement sur n'importe quelle machine DSI sans prérequis système.
+- Portabilité réseau : accessible sur le sous-réseau GTAC2A via adresse IP locale.
+- Base de données SQLite (développement, démonstration) / MySQL-MariaDB (production).
+- Binaire FrankenPHP autonome : plug and play en quelques secondes.
+
+================================================================================
+5. ARCHITECTURE TECHNIQUE ET ENVIRONNEMENT
+================================================================================
+
+5.1. Stack logicielle
+- Langage de programmation  : PHP 8.2+
+- Framework backend          : Symfony 7.x (Architecture Full-Stack moderne)
+- Serveur d'Application      : FrankenPHP (Caddy + runtime PHP intégré)
+- Moteur de template          : Twig 3.x
+- Persistance / ORM           : Doctrine ORM avec SQLite / MySQL-MariaDB (production)
+- Framework CSS / UI          : Bootstrap 5.3 + Bootstrap Icons
+- Librairies frontend          : Hotwired Turbo + Stimulus JS
+- Gestionnaire d'assets        : Symfony AssetMapper (zéro Node.js / npm)
+- Sécurité                      : Symfony Security Bundle, RateLimiter, CSRF
+
+5.2. Schéma Architectural MVC Symfony
+                    +--------------------------------+
+                    |        Navigateur Client       |
+                    |   (Turbo Drive + Bootstrap 5)  |
+                    +---------------+----------------+
+                                    | HTTP / HTTPS
+                                    v
+                    +--------------------------------+
+                    |       Front Controller         |
+                    |         (public/index.php)     |
+                    +---------------+----------------+
+                                    |
+                                    v
+                    +--------------------------------+
+                    |    Symfony Routing & Security  |
+                    | (IP Filter + 2FA PIN + RLIMIT) |
+                    +---------------+----------------+
+                                    |
+            +-----------------------+-----------------------+
+            |                                               |
+            v                                               v
++-----------------------+                       +-----------------------+
+|  Controllers (HTTP)   |                       |    Services Métier    |
+| - EquipementController|                       | - AttributionManager  |
+| - PersonnelController |<--------------------->| - ExcelReportGenerator|
+| - AttributionControl. |                       | - AuditLogger         |
+| - RapportController   |                       | - MatriculeGenerator  |
++-----------+-----------+                       | - SessionGuardService |
+            |                                   +-----------------------+
+            v
++-----------------------+                       +-----------------------+
+| Vues & Templates Twig |                       |   Modèles & Doctrine  |
+| - personnel/show.twig |                       | - Entities (PHP 8)    |
+| - equipement/show.twig|                       | - Repositories (DQL)  |
+| - rapport/index.twig  |                       +-----------+-----------+
++-----------------------+                                   |
+                                                            v
+                                                +-----------------------+
+                                                |     Base de Données   |
+                                                |  (SQLite / MySQL DSI) |
+                                                +-----------------------+
+
+5.3. Gestion des dépendances et assets sans Node.js (AssetMapper)
+- Élimination complète de la dépendance à Node.js sur le serveur hôte.
+- Téléchargement et cartographie directe via importmaps standardisées.
+- Pas de dossier node_modules (réduction extrême de l'empreinte disque).
+
+5.4. Choix d'Ingénierie : FrankenPHP vs Stack LAMP/LEMP classique
+- Problématique LAMP/LEMP : complexité d'installation, incompatibilité de versions,
+  nécessité de configurer PHP-FPM / VirtualHosts / règles de réécriture.
+- Avantages FrankenPHP :
+  a) Architecture tout-en-un self-contained (exécutable unique Go+PHP).
+  b) Worker Mode : kernel Symfony gardé en mémoire, < 20 ms vs ~150 ms.
+  c) Rechargement à chaud en développement (Mercure + Idiomorph).
+  d) HTTP/2, HTTP/3 (QUIC), TLS automatique sans configuration manuelle.
+
+================================================================================
+6. MODÉLISATION ET CONCEPTION UML
+================================================================================
+
+6.1. Diagramme des Cas d'Utilisation
+--------------------------------------------------------------------------------
+ACTEURS :
+  - Opérateur GTA (Gestionnaire DSI)
+  - Super-Administrateur DSI (spécialisation de l'Opérateur avec privilèges étendus)
+  - Système de Sécurité Réseau (acteur secondaire / automatique)
+
+CAS D'UTILISATION PRINCIPAUX :
+  [Opérateur GTA]
+  ├── (S'authentifier) <<include>> (Valider le code PIN 2FA)
+  ├── (Consulter le Tableau de bord et les KPIs financiers)
+  ├── (Gérer les Équipements)
+  │    ├── (Ajouter / Modifier / Consulter / Supprimer un équipement)
+  │    └── (Attribuer rapidement depuis la fiche équipement)
+  ├── (Gérer les Composants et Pièces détachées)
+  ├── (Gérer le Répertoire du Personnel) [v2.0]
+  │    ├── (Ajouter / Modifier un collaborateur)
+  │    ├── (Consulter la fiche individuelle du collaborateur)
+  │    └── (Voir l'historique des équipements du collaborateur)
+  ├── (Gérer les Dotations & Attributions)
+  │    ├── (Attribuer un matériel à un collaborateur)
+  │    ├── (Gérer le remplacement d'équipement avec transfert IP) [v2.0]
+  │    └── (Enregistrer une restitution)
+  ├── (Gérer les Tickets de Maintenance SAV)
+  └── (Générer et Exporter les Rapports)
+       ├── (Configurer les colonnes sur mesure)
+       ├── (Filtrer le bilan global) [v2.0]
+       └── (Télécharger le Bilan Global Unifié Excel)
+
+  [Super-Administrateur DSI]
+  ├── (Toutes les actions de l'Opérateur GTA)
+  ├── (Gérer les Comptes Utilisateurs DSI)
+  ├── (Gérer les Postes Autorisés / Liste Blanche IP)
+  ├── (Consulter le Journal d'Audit)
+  └── (Purger les entrées d'audit obsolètes)
+
+  [Système de Sécurité Réseau]
+  ├── (Intercepter et vérifier l'IP cliente) <<extend>> (Bloquer l'accès)
+  └── (Appliquer le Rate Limiting) <<extend>> (Retourner HTTP 429) [v2.0]
+
+6.2. Diagramme de Classes Métier
+--------------------------------------------------------------------------------
+CLASSES ET ATTRIBUTS :
+
+1. Classe `Equipement`
+   - id : Integer [PK]
+   - nom : String(150)
+   - marque : String(100)
+   - modele : String(100)
+   - numeroSerie : String(100) [Unique]
+   - tagInventaire : String(50) [Nullable]
+   - adresseIp : String(45) [Nullable]
+   - statut : String(50)       // "En service", "En stock", "En panne", "Prêté", "Au rebut"
+   - systemeExploitation : String(100) [Nullable]
+   - dateAcquisition : Date
+   - finGarantie : Date
+   - prixAchat : Float
+   - notes : Text
+   - dateAjout : DateTimeImmutable
+   + getAgeAnnees() : Float
+   + isVieillissant() : Boolean
+   + isObsolete() : Boolean
+
+2. Classe `CategorieEquipement`
+   - id : Integer [PK]
+   - nomCat : String(100)
+   - description : Text
+
+3. Classe `Lieu`
+   - id : Integer [PK]
+   - nomLieu : String(100)
+   - batiment : String(100)
+   - etage : String(50)
+
+4. Classe `Composant`
+   - id : Integer [PK]
+   - nom : String(150)
+   - type : String(100)
+   - numeroSerie : String(100)
+   - quantite : Integer
+   - statut : String(50)
+   - prixAchat : Float
+   - dateAcquisition : Date
+   - notes : Text
+
+5. Classe `Personnel` [NOUVEAU v2.0]
+   - id : Integer [PK]
+   - matricule : String(50) [Unique]
+   - nom : String(150)
+   - type : String(50)    // "Employé", "Prestataire", "Stagiaire", "Visiteur"
+   - service : String(100)
+   - email : String(150)
+   - telephone : String(50)
+   - statut : String(30)  // "Actif", "Inactif", "Suspendu"
+   - dateAjout : DateTime
+   - notes : Text
+   + getActiveAttributionsCount() : Integer
+
+6. Classe `Attribution`
+   - id : Integer [PK]
+   - beneficiaireNom : String(150)
+   - beneficiaireService : String(100)
+   - dateDebut : DateTime
+   - dateFinPrevue : DateTime
+   - dateRestitution : DateTime
+   - statut : String(50)  // "En cours", "Restitué", "Prolongé"
+   - motif : Text
+   - notes : Text
+
+7. Classe `TicketMaintenance`
+   - id : Integer [PK]
+   - titre : String(150)
+   - description : Text
+   - priorite : String(50)    // "Faible", "Moyenne", "Haute", "Critique"
+   - statut : String(50)      // "En cours", "Résolu", "En attente"
+   - technicien : String(100)
+   - cout : Float
+   - solution : Text
+   - dateCreation : DateTime
+   - dateResolution : DateTime
+
+8. Classe `User`
+   - id : Integer [PK]
+   - username : String(180) [Unique]
+   - roles : JSON
+   - password : String(255)
+   - pinHash : String(255)
+   - isActive : Boolean
+
+9. Classe `PosteAutorise`
+   - id : Integer [PK]
+   - adresseIp : String(45) [Unique]
+   - nomPoste : String(100)
+   - description : String(255)
+   - actif : Boolean
+   - dateAjout : DateTimeImmutable
+
+10. Classe `CampagneInventaire` [NOUVEAU v2.1]
+   - id : Integer [PK]
+   - titre : String(150)
+   - annee : Integer
+   - dateDebut : DateTime
+   - dateCloture : DateTime [Nullable]
+   - statut : String(30)       // "En cours", "Clôturée"
+   - creePar : String(100)
+   - notes : Text
+   + getTauxProgression() : Float
+   + getConformesCount() : Integer
+   + getDeplacesCount() : Integer
+   + getManquantsCount() : Integer
+   + getHorsServiceCount() : Integer
+
+11. Classe `LigneInventaire` [NOUVEAU v2.1]
+   - id : Integer [PK]
+   - statutConstate : String(50) // "En attente", "Conforme", "Déplacé", "Manquant", "Hors service"
+   - lieuAttendu : String(100)
+   - datePointage : DateTime [Nullable]
+   - pointePar : String(100)
+   - observations : Text
+   + isEcart() : Boolean
+
+RELATIONS ET CARDINALITÉS :
+- `Equipement` (0..*) ---- (0..1) `CategorieEquipement`
+- `Equipement` (0..*) ---- (0..1) `Lieu`
+- `Composant`  (0..*) ---- (0..1) `Equipement`
+- `Composant`  (0..*) ---- (0..1) `Lieu`
+- `Attribution` (0..*) ---- (0..1) `Equipement`
+- `Attribution` (0..*) ---- (0..1) `Personnel` [NOUVEAU v2.0]
+- `TicketMaintenance` (0..*) ---- (0..1) `Equipement`
+- `CampagneInventaire` (1) <---> (0..*) `LigneInventaire` [NOUVEAU v2.1] : Une campagne contient plusieurs lignes de pointage.
+- `LigneInventaire` (0..*) ---- (1) `Equipement` [NOUVEAU v2.1] : Chaque ligne cible un équipement inventorié.
+- `LigneInventaire` (0..*) ---- (0..1) `Lieu` (Lieu constaté) [NOUVEAU v2.1].
+
+6.3. Modèle Logique des Données (MLD)
+--------------------------------------------------------------------------------
+- EQUIPEMENT (id [PK], nom, marque, modele, numero_serie [UNIQUE], tag_inventaire,
+              adresse_ip, statut, systeme_exploitation, date_acquisition, fin_garantie,
+              prix_achat, notes, date_ajout, #categorie_id, #lieu_id)
+- CATEGORIE_EQUIPEMENT (id [PK], nom_cat, description)
+- LIEU (id [PK], nom_lieu, batiment, etage)
+- COMPOSANT (id [PK], nom, type, numero_serie, quantite, statut, prix_achat,
+             date_acquisition, notes, #equipement_id, #lieu_id)
+- PERSONNEL (id [PK], matricule [UNIQUE], nom, type, service, email, telephone,
+             statut, date_ajout, notes)
+- ATTRIBUTION (id [PK], beneficiaire_nom, beneficiaire_service, date_debut,
+               date_fin_prevue, date_restitution, statut, motif, notes,
+               #equipement_id, #personnel_id [FK NULLABLE])
+- TICKET_MAINTENANCE (id [PK], titre, description, priorite, statut, technicien,
+                      cout, solution, date_creation, date_resolution, #equipement_id)
+- USER (id [PK], username [UNIQUE], roles, password, pin_hash, is_active)
+- POSTE_AUTORISE (id [PK], adresse_ip [UNIQUE], nom_poste, description, actif, date_ajout)
+- AUDIT_LOG (id [PK], action, level, description, entity_type, entity_id,
+             entity_label, user_id, details, ip_address, created_at)
+- CAMPAGNE_INVENTAIRE (id [PK], titre, annee, date_debut, date_cloture, statut,
+                      cree_par, notes)                               [NOUVEAU v2.1]
+- LIGNE_INVENTAIRE (id [PK], statut_constate, lieu_attendu, date_pointage,
+                    pointe_par, observations, #campagne_id, #equipement_id,
+                    #lieu_constate_id [FK NULLABLE])                 [NOUVEAU v2.1]
+
+6.4. Diagrammes de Séquence Système
+--------------------------------------------------------------------------------
+
+[SÉQUENCE 1 : Authentification 2FA PIN et contrôle IP]
+1. L'Utilisateur saisit l'URL de l'application.
+2. SecurityGuard intercepte la requête et récupère l'IP cliente.
+3. SecurityGuard vérifie l'IP dans la table PosteAutorise.
+   -> NON : Redirection page "Accès Interdit / IP non autorisée".
+   -> OUI : Vérification du Rate Limiter (max 10 req/min par IP).
+      -> DÉPASSÉ : Réponse HTTP 429 / Retry-After.
+      -> AUTORISÉ : Affichage de la page de connexion.
+4. L'Utilisateur soumet identifiant + mot de passe.
+5. Symfony valide le mot de passe hashé (bcrypt).
+6. Redirection vers le pavé numérique 2FA PIN.
+7. L'Utilisateur compose son code PIN à 4 chiffres.
+8. Le serveur vérifie le hash du PIN.
+9. Accès accordé : ouverture de session, redirection tableau de bord.
+
+[SÉQUENCE 2 : Attribution avec remplacement et transfert IP (v2.0)]
+1. L'Opérateur accède au formulaire d'attribution (/attributions/new).
+2. Il sélectionne un équipement (ex: Laptop) et un collaborateur.
+3. Le système `AttributionManager` calcule la famille de catégorie (FAMILY_LAPTOP).
+4. Le système vérifie si le collaborateur possède déjà un laptop en cours.
+   -> NON : Attribution directe, enregistrement, flash succès.
+   -> OUI : Affichage de la notice de remplacement avec le nom de l'ancien laptop.
+5. L'Opérateur choisit une option :
+   a) "Mettre en stock" : l'ancien attribution est clôturée, l'ancien équipement
+      passe à "En stock".
+   b) "Réaffecter à" : l'ancien équipement est immédiatement affecté à un autre
+      collaborateur sélectionné dans la liste.
+6. Le service `handleOldEquipmentAction()` exécute le transfert d'identité :
+   - Lit adresseIp et tagInventaire de l'ancien équipement.
+   - Efface ces champs sur l'ancien équipement.
+   - Recopie ces valeurs sur le nouvel équipement.
+7. Enregistrement des deux opérations, flush Doctrine, journal audit.
+8. Flash message détaillé : "IP XXX.XXX.X.X et code GTAC-XXXX transférés."
+
+[SÉQUENCE 3 : Génération et Export du Bilan Global sur mesure]
+1. Accès au Centre de Rapports (/rapports?scope=bilan).
+2. Sélection des colonnes et des filtres (catégorie, statut, période) [v2.0].
+3. Clic sur "Télécharger Bilan Excel (.xls)".
+4. RapportController → fetchBilanMasterData() (données consolidées).
+5. ExcelReportGenerator → document XML Spreadsheet GTAC2A.
+6. Navigateur télécharge le fichier Excel unique.
+
+6.5. Diagramme d'Activité : Cycle de vie d'un équipement
+--------------------------------------------------------------------------------
+           [Début : Réception du matériel par la DSI]
+                             |
+                             v
+                  [Enregistrement de l'actif]
+         (Saisie S/N, Modèle, Facture, IP, Catégorie)
+                             |
+                             v
+                     [Statut = En stock]
+                             |
+                             +-----------------------+
+                             |                       |
+                  (Demande de dotation)       (Panne en réserve)
+                             |                       |
+                             v                       v
+                   [Statut = En service]    [Statut = En panne]
+                   (Affecté à un agent)              |
+                             |                       v
+                             |              [Intervention SAV]
+                             |                       |
+             +---------------+---------------+       |
+             |                               |       |
+      (Incident / Panne)            (Restitution)    |
+             |                               |       |
+             v                               v       |
+    [Statut = En panne]             [Statut = En stock]
+             |                               |
+             v                               |
+    [Réparation réussie ?]                   |
+        /           \                        |
+    (Oui)           (Non)                    |
+      |               |                      |
+      v               v                      |
+[Retour en service] [Statut = Au rebut] <----+
+                             |
+                             v
+                 [Fin de cycle : Archivage]
+
+6.6. Diagramme de Déploiement
+--------------------------------------------------------------------------------
+1. Postes Clients (Navigateurs Web DSI)
+   - Chrome, Edge, Firefox
+   - Exécution client : Hotwired Turbo + Stimulus JS + Bootstrap 5 CSS
+
+2. Réseau d'Entreprise Sécurisé GTAC2A-IARDT
+   - Sous-réseau local / VPN certifié
+   - Adresses IP attribuées et filtrées par la liste blanche applicative
+
+3. Serveur Applicatif Web & PHP (Machine DSI ou serveur dédié)
+   - Moteur PHP 8.2+ (extensions : SQLite/MySQL, Ctype, Session)
+   - Serveur Web : FrankenPHP (autonome) ou Nginx
+   - Framework Symfony 7 en environnement de production (env=prod)
+   - Rate Limiter (Symfony) : protection sur routes critiques
+
+4. Serveur de Données
+   - SGBD : SQLite (démonstration / légèreté) / MySQL-MariaDB (production)
+   - Sauvegardes manuelles via interface Super-Admin ou automatisées
+
+================================================================================
+7. PLANNING PRÉVISIONNEL ET LIVRABLES DU PROJET
+================================================================================
+
+7.1. Démarche méthodologique
+Méthode Agile (Scrum) articulée en 5 Sprints successifs :
+- Sprint 1 : Conception UML, socle Symfony, base de données, authentification 2FA
+             + filtrage IP.
+- Sprint 2 : Gestion des équipements, catégories, lieux et composants.
+- Sprint 3 : Gestion des attributions, pannes, recherche par bénéficiaire
+             et navigation Turbo SPA.
+- Sprint 4 : Centre de rapports sur mesure, générateur Excel GTAC2A,
+             journal d'audit, navigation clavier complète.
+- Sprint 5 : Répertoire du Personnel & fiches individuelles, règles métier
+  [v2.0]    avancées (unicité catégorie, transfert IP), rate limiting,
+             hardening sécurité, nettoyage BDD, recette utilisateur finale.
+
+7.2. Livrables académiques
+1. Le code source versionné et documenté du projet G-PARC.
+2. Le présent Cahier des Charges Fonctionnel et Technique (v2.0).
+3. Le Document de Conception Logicielle & Dossier d'Architecture (DCL).
+4. Le Guide d'Installation, d'Administration et Manuel Utilisateur DSI.
+5. Le Guide de Présentation et de Démonstration (GUIDE_DE_PRESENTATION_DEMO_G-PARC.txt).
+6. Le Mémoire / Rapport de Fin de Cycle et le support de soutenance orale.
+
+================================================================================
+ANNEXE : ROADMAP v3.0 — ÉVOLUTIONS FUTURES PRIORISÉES
+================================================================================
+
+Les fonctionnalités ci-dessous sont classées par ordre de priorité décroissant,
+tel que validé par le commanditaire. Les items [VALIDÉ] sont planifiés pour
+implémentation immédiate en v3.0 ; les items [PLUS TARD] sont différés.
+
+────────────────────────────────────────────────────────────────────────────────
+PRIORITÉ 1 — IMPACT VISUEL & OPÉRATIONNEL IMMÉDIAT  [VALIDÉ]
+────────────────────────────────────────────────────────────────────────────────
+
+A1. Notifications & Alertes automatiques  [VALIDÉ]
+    - Alerte par email (Symfony Mailer) à la DSI lorsqu'un équipement atteint
+      5 ans (seuil d'obsolescence) ou quand la garantie expire dans moins de 30 jours.
+    - Alerte sur les attributions arrivant à échéance (date_fin_prevue dépassée).
+    Technologie : symfony/mailer (installation via composer require symfony/mailer).
+
+A2. QR Code par équipement  [VALIDÉ]
+    - Génération d'un QR code unique pour chaque équipement (code inventaire).
+    - Le QR code renvoie directement vers la fiche de l'équipement (/equipements/{id}).
+    - Impression de plaquettes étiquettes pour apposer sur les machines physiques.
+    Technologie : endroid/qr-code (composer require endroid/qr-code).
+
+A3. Tableau de bord enrichi avec graphiques  [VALIDÉ]
+    - Graphique camembert : répartition du parc par catégorie.
+    - Graphique barre : évolution mensuelle des pannes et coûts SAV.
+    - Graphique ligne : nombre d'attributions actives dans le temps.
+    Technologie : Chart.js via AssetMapper (zéro npm, zéro Node.js).
+
+A4. Export PDF des fiches  [VALIDÉ]
+    - Génération PDF de la fiche d'équipement ou de la fiche personnel,
+      avec logo GTAC2A, en-tête institutionnel, pour archivage physique
+      ou envoi par email.
+    Technologie : Dompdf (composer require dompdf/dompdf).
+
+────────────────────────────────────────────────────────────────────────────────
+PRIORITÉ 2 — FONCTIONNEL AVANCÉ  [VALIDÉ]
+────────────────────────────────────────────────────────────────────────────────
+
+B1. Module Inventaire périodique (passage en revue)  [VALIDÉ]
+    - Fonctionnalité de "passage en revue" périodique du parc informatique :
+      l'opérateur confirme ou infirme la présence physique de chaque équipement,
+      équipement par équipement, depuis l'interface web.
+    - Chaque confirmation est horodatée et tracée dans le journal d'audit.
+    - Génération d'un rapport d'écarts (machines introuvables, déplacées,
+      non confirmées depuis N jours) exportable en Excel.
+    - Indicateur visuel sur la liste des équipements : "Dernière vérification le XX/XX/XXXX".
+
+B2. Pièces jointes et documents
+    - Upload de documents associés à un équipement (facture PDF, bon de livraison,
+      rapport SAV) ou à une maintenance.
+    - Stockage sécurisé dans le système de fichiers Symfony.
+
+B3. Historique de localisation
+    - Tracer les changements de Lieu d'un équipement dans le temps.
+    - La DSI peut savoir dans quel bureau/salle était une machine à une date donnée.
+
+────────────────────────────────────────────────────────────────────────────────
+PRIORITÉ 3 — ÉVOLUTIONS TECHNIQUES (APRÈS SOUTENANCE)  [PLUS TARD]
+────────────────────────────────────────────────────────────────────────────────
+
+C1. API REST pour intégration ERP  [PLUS TARD]
+    - Exposition d'endpoints JSON REST sécurisés (JWT) pour permettre
+      l'interrogation du parc par d'autres outils internes (ERP, outil ITSM).
+
+C2. Application mobile PWA (Progressive Web App)  [PLUS TARD]
+    - Manifeste Web App + Service Worker pour installer G-PARC comme
+      application mobile sur les smartphones DSI.
+    - Consultation du parc en mobilité (hors réseau local via VPN).
+
+C3. Multi-sites / Multi-agences  [PLUS TARD]
+    - Extension de l'entité Lieu pour gérer plusieurs agences géographiques
+      (Lomé, Kara, Sokodé) avec filtrage global par site.
+
+C4. Mode sombre complet
+    - Thème sombre (dark mode) déjà partiellement supporté via Bootstrap 5
+      data-bs-theme, à compléter sur l'ensemble des composants custom.
+
+================================================================================
+FIN DU DOCUMENT - CAHIER DES CHARGES G-PARC v2.0 / GTAC2A-IARDT
+================================================================================

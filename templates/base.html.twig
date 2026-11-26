@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="turbo-cache-control" content="no-cache">
+        <title>{% block title %}GTAC2A-IARDT | Gestion de Parc{% endblock %}</title>
+        <link rel="icon" type="image/svg+xml" href="{{ asset('images/horse-circle.svg') }}">
+        
+        <!-- Bootstrap Icons CDN -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+        <!-- Bootstrap 5 JS Bundle CDN -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+        {% block stylesheets %}
+        {% endblock %}
+
+        {% block javascripts %}
+            {% block importmap %}{{ importmap('app') }}{% endblock %}
+        {% endblock %}
+
+        {% set frankenphp_hot_reload = app.request.server.get('FRANKENPHP_HOT_RELOAD') %}
+        {% if frankenphp_hot_reload %}
+        <meta name="frankenphp-hot-reload:url" content="{{ frankenphp_hot_reload }}">
+        <script src="https://cdn.jsdelivr.net/npm/idiomorph"></script>
+        <script src="https://cdn.jsdelivr.net/npm/frankenphp-hot-reload/+esm" type="module"></script>
+        {% endif %}
+        <!-- Initialisation immédiate du Thème (anti-flash FOUC) -->
+        <script>
+            (function() {
+                const storedTheme = localStorage.getItem('gparc-theme');
+                const theme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-bs-theme', theme);
+            })();
+        </script>
+    </head>
+    <body data-controller="sidebar session-guard shortcuts theme" data-session-guard-ping-url-value="{{ path('app_auth_ping') }}" data-action="keydown@document->shortcuts#handle">
+        <div class="app-wrapper">
+            <!-- Mobile Sidebar Backdrop -->
+            <div class="sidebar-backdrop" data-sidebar-target="backdrop" data-action="click->sidebar#close"></div>
+
+            <!-- Sidebar (Option 4 Segmentée + Option 3 Dark & Orange Glow) -->
+            <aside class="app-sidebar" data-sidebar-target="sidebar">
+                <a href="{{ path('app_home') }}" class="sidebar-brand">
+                    <img src="{{ asset('images/logo-gta.png') }}" alt="GTAC2A-IARDT" class="sidebar-brand-logo">
+                    <div class="sidebar-brand-info">
+                        <div class="sidebar-brand-title">G-<span>PARC</span></div>
+                        <div class="sidebar-brand-subtitle">GTAC2A-IARDT</div>
+                    </div>
+                </a>
+
+                <!-- User Account Profile Banner (Segmented Card avec point vert pulsant en direct) -->
+                {% if app.user %}
+                <div class="sidebar-user-card mx-2 my-2 p-2 px-3 rounded-3 d-flex align-items-center gap-3">
+                    <div class="position-relative flex-shrink-0">
+                        <div class="rounded-circle bg-white text-dark d-flex align-items-center justify-content-center fw-bold shadow-sm"
+                             style="width: 38px; height: 38px; font-size: 0.95rem; color: #121212;">
+                            {{ app.user.userIdentifier|slice(0, 2)|upper }}
+                        </div>
+                        <span class="sidebar-status-dot" title="Session en ligne"></span>
+                    </div>
+                    <div class="overflow-hidden flex-grow-1">
+                        <div class="text-white fw-bold small text-truncate" style="letter-spacing: -0.2px;">
+                            {{ app.user.userIdentifier|capitalize }}
+                        </div>
+                        <div class="d-flex align-items-center gap-1 text-warning text-truncate" style="font-size: 0.72rem; font-weight: 500;">
+                            <i class="bi bi-shield-check" style="font-size: 0.7rem;"></i>
+                            <span>
+                                {% if is_granted('ROLE_SUPER_ADMIN') %}
+                                    Administrateur DSI
+                                {% else %}
+                                    Opérateur GTA
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <nav class="sidebar-nav">
+                    <!-- Segment 1 : Principal -->
+                    <div class="sidebar-block mb-2">
+                        <div class="sidebar-section-title">Principal</div>
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') == 'app_home' %}active{% endif %}" href="{{ path('app_home') }}" data-shortcut="d" title="Raccourci : D">
+                                    <i class="bi bi-speedometer2"></i>
+                                    <span>Tableau de bord</span>
+                                    <kbd class="sidebar-kbd ms-auto">D</kbd>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Segment 2 : Inventaire & Matériel -->
+                    <div class="sidebar-block mb-2">
+                        <div class="sidebar-section-title">Inventaire & Matériel</div>
+                        <ul class="nav flex-column">
+                            {# Sous-menu Équipements #}
+                            <li class="nav-item">
+                                <a class="nav-link d-flex justify-content-between align-items-center {% if app.request.attributes.get('_route') starts with 'app_equipement' %}active{% endif %}" 
+                                   data-bs-toggle="collapse" 
+                                   data-bs-target="#subEquipements"
+                                   href="#subEquipements" 
+                                   role="button" 
+                                   data-turbo="false"
+                                   aria-expanded="{{ app.request.attributes.get('_route') starts with 'app_equipement' ? 'true' : 'false' }}">
+                                    <span class="d-flex align-items-center">
+                                        <i class="bi bi-pc-display-horizontal me-2"></i>
+                                        <span>Équipements</span>
+                                    </span>
+                                    <i class="bi bi-chevron-down chevron-icon small opacity-75"></i>
+                                </a>
+                                <div class="collapse {% if app.request.attributes.get('_route') starts with 'app_equipement' %}show{% endif %}" id="subEquipements">
+                                    <ul class="nav flex-column ms-2 ps-2 border-start border-secondary border-opacity-25 my-1">
+                                        <li class="nav-item">
+                                            <a class="nav-link py-1 small {% if app.request.attributes.get('_route') == 'app_equipement_index' %}active{% endif %}" href="{{ path('app_equipement_index') }}" data-shortcut="e" title="Raccourci : E">
+                                                <i class="bi bi-list-ul me-1"></i> <span>Liste du parc</span>
+                                                <kbd class="sidebar-kbd ms-auto">E</kbd>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link py-1 small {% if app.request.attributes.get('_route') == 'app_equipement_new' %}active{% endif %}" href="{{ path('app_equipement_new') }}">
+                                                <i class="bi bi-plus-circle me-1"></i> <span>Nouveau matériel</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </li>
+
+                            {# Sous-menu Composants & Consommables #}
+                            <li class="nav-item">
+                                <a class="nav-link d-flex justify-content-between align-items-center {% if app.request.attributes.get('_route') starts with 'app_composant' %}active{% endif %}" 
+                                   data-bs-toggle="collapse" 
+                                   data-bs-target="#subComposants"
+                                   href="#subComposants" 
+                                   role="button" 
+                                   data-turbo="false"
+                                   aria-expanded="{{ app.request.attributes.get('_route') starts with 'app_composant' ? 'true' : 'false' }}">
+                                    <span class="d-flex align-items-center">
+                                        <i class="bi bi-cpu me-2"></i>
+                                        <span>Composants</span>
+                                    </span>
+                                    <i class="bi bi-chevron-down chevron-icon small opacity-75"></i>
+                                </a>
+                                <div class="collapse {% if app.request.attributes.get('_route') starts with 'app_composant' %}show{% endif %}" id="subComposants">
+                                    <ul class="nav flex-column ms-2 ps-2 border-start border-secondary border-opacity-25 my-1">
+                                        <li class="nav-item">
+                                            <a class="nav-link py-1 small {% if app.request.attributes.get('_route') == 'app_composant_index' %}active{% endif %}" href="{{ path('app_composant_index') }}" data-shortcut="c" title="Raccourci : C">
+                                                <i class="bi bi-list-ul me-1"></i> <span>Liste des pièces</span>
+                                                <kbd class="sidebar-kbd ms-auto">C</kbd>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link py-1 small {% if app.request.attributes.get('_route') == 'app_composant_new' %}active{% endif %}" href="{{ path('app_composant_new') }}">
+                                                <i class="bi bi-plus-circle me-1"></i> <span>Nouvelle pièce</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </li>
+
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') starts with 'app_categorie' %}active{% endif %}" href="{{ path('app_categorie_index') }}" data-shortcut="i" title="Raccourci : I">
+                                    <i class="bi bi-tags"></i>
+                                    <span>Catégories</span>
+                                    <kbd class="sidebar-kbd ms-auto">I</kbd>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') starts with 'app_lieu' %}active{% endif %}" href="{{ path('app_lieu_index') }}" data-shortcut="l" title="Raccourci : L">
+                                    <i class="bi bi-geo-alt"></i>
+                                    <span>Lieux & Salles</span>
+                                    <kbd class="sidebar-kbd ms-auto">L</kbd>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Segment 3 : Opérations & Analyses -->
+                    <div class="sidebar-block mb-2">
+                        <div class="sidebar-section-title">Opérations & Analyses</div>
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') starts with 'app_inventaire' %}active{% endif %}" href="{{ path('app_inventaire_index') }}" title="Campagnes d'inventaire physique annuel">
+                                    <i class="bi bi-clipboard2-check text-warning"></i>
+                                    <span>Inventaire Annuel</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') starts with 'app_personnel' %}active{% endif %}" href="{{ path('app_personnel_index') }}" data-shortcut="o" title="Raccourci : O">
+                                    <i class="bi bi-person-lines-fill"></i>
+                                    <span>Personnel</span>
+                                    <kbd class="sidebar-kbd ms-auto">O</kbd>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') starts with 'app_attribution' %}active{% endif %}" href="{{ path('app_attribution_index') }}" data-shortcut="a" title="Raccourci : A">
+                                    <i class="bi bi-arrow-left-right"></i>
+                                    <span>Attributions & Prêts</span>
+                                    <kbd class="sidebar-kbd ms-auto">A</kbd>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') starts with 'app_maintenance' %}active{% endif %}" href="{{ path('app_maintenance_index') }}" data-shortcut="t" title="Raccourci : T">
+                                    <i class="bi bi-tools text-danger"></i>
+                                    <span>Maintenances & Pannes</span>
+                                    <kbd class="sidebar-kbd ms-auto">T</kbd>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') starts with 'app_rapport' %}active{% endif %}" href="{{ path('app_rapport_index') }}" data-shortcut="r" title="Raccourci : R">
+                                    <i class="bi bi-bar-chart-line-fill text-warning"></i>
+                                    <span class="fw-semibold">Rapports & Exports</span>
+                                    <kbd class="sidebar-kbd ms-auto">R</kbd>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Segment 4 : Sécurité & Réseau -->
+                    {% if is_granted('ROLE_SUPER_ADMIN') %}
+                    <div class="sidebar-block mb-2">
+                        <div class="sidebar-section-title">Sécurité & Réseau</div>
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') starts with 'app_postes' %}active{% endif %}" href="{{ path('app_postes_index') }}" data-shortcut="p" title="Raccourci : P">
+                                    <i class="bi bi-shield-check"></i>
+                                    <span>Postes Autorisés</span>
+                                    <kbd class="sidebar-kbd ms-auto">P</kbd>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') starts with 'app_user' %}active{% endif %}" href="{{ path('app_user_index') }}" data-shortcut="u" title="Raccourci : U">
+                                    <i class="bi bi-people"></i>
+                                    <span>Utilisateurs</span>
+                                    <kbd class="sidebar-kbd ms-auto">U</kbd>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') starts with 'app_audit' %}active{% endif %}" href="{{ path('app_audit_index') }}" data-shortcut="j" title="Raccourci : J">
+                                    <i class="bi bi-journal-text"></i>
+                                    <span>Journal d'audit</span>
+                                    <kbd class="sidebar-kbd ms-auto">J</kbd>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') starts with 'app_backup' %}active{% endif %}" href="{{ path('app_backup_index') }}" data-shortcut="b" title="Raccourci : B">
+                                    <i class="bi bi-database-fill-gear text-warning"></i>
+                                    <span>Sauvegardes DB</span>
+                                    <kbd class="sidebar-kbd ms-auto">B</kbd>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if app.request.attributes.get('_route') starts with 'app_sauvegarde_poste' %}active{% endif %}" href="{{ path('app_sauvegarde_poste_index') }}" title="Points de restauration et sauvegardes des ordinateurs du domaine">
+                                    <i class="bi bi-shield-check text-info"></i>
+                                    <span>Sauvegardes Postes</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </nav>
+
+                <div class="sidebar-footer">
+                    <!-- Bouton Logout -->
+                    <a href="{{ path('app_logout') }}" class="btn btn-outline-light rounded-pill w-100 fw-bold d-flex align-items-center justify-content-center gap-2 py-2 sidebar-logout-btn transition" style="font-size: 0.84rem; letter-spacing: 0.2px;">
+                        <i class="bi bi-box-arrow-left"></i>
+                        <span>Déconnexion</span>
+                    </a>
+                </div>
+            </aside>
+
+            <!-- Main Workspace -->
+            <div class="app-main">
+                <!-- Filigrane officiel GTAC2A-IARDT visible sur chaque page et menu -->
+                <div class="gta-watermark-bg" aria-hidden="true">
+                    <img src="{{ asset('images/logo-gta.png') }}" alt="" class="gta-watermark-img">
+                </div>
+
+                <!-- Topbar -->
+                <header class="app-topbar">
+                    <div class="d-flex align-items-center gap-3">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-action="click->sidebar#toggle" aria-label="Menu latéral">
+                            <i class="bi bi-list fs-5"></i>
+                        </button>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="d-none d-sm-flex align-items-center gap-2">
+                            <!-- Cloche d'Alerting Proactif GTAC2A -->
+                            {% set proactiveData = get_proactive_alerts() %}
+                            <div class="dropdown">
+                                <button type="button" 
+                                        class="btn btn-outline-secondary btn-sm rounded-circle position-relative d-flex align-items-center justify-content-center shadow-sm"
+                                        style="width: 32px; height: 32px; font-size: 0.9rem;"
+                                        data-bs-toggle="dropdown" 
+                                        aria-expanded="false"
+                                        title="Alertes proactives du parc ({{ proactiveData.total_alerts }} alerte(s))">
+                                    <i class="bi bi-bell{% if proactiveData.critical_count > 0 %}-fill text-danger{% elseif proactiveData.warning_count > 0 %}-fill text-warning{% endif %}"></i>
+                                    {% if proactiveData.critical_count > 0 %}
+                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.62rem;">
+                                            {{ proactiveData.critical_count }}
+                                            <span class="visually-hidden">alertes critiques</span>
+                                        </span>
+                                    {% elseif proactiveData.warning_count > 0 %}
+                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark border border-light" style="font-size: 0.62rem;">
+                                            {{ proactiveData.warning_count }}
+                                        </span>
+                                    {% endif %}
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-0" style="width: 360px; max-width: 90vw; border-radius: 12px; overflow: hidden;">
+                                    <div class="p-3 bg-light border-bottom d-flex align-items-center justify-content-between">
+                                        <div class="fw-bold small text-dark d-flex align-items-center gap-2">
+                                            <i class="bi bi-shield-exclamation text-warning fs-5"></i>
+                                            <span>Centre d'Alertes Proactives</span>
+                                        </div>
+                                        {% if proactiveData.total_alerts > 0 %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.7rem;">
+                                                {{ proactiveData.total_alerts }} incident(s)
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.7rem;">
+                                                Parc Conforme
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="p-2" style="max-height: 380px; overflow-y: auto;">
+                                        {% if proactiveData.alerts is empty %}
+                                            <div class="text-center py-4 text-muted small">
+                                                <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-2"></i>
+                                                Toutes les machines et stocks respectent les normes GTAC2A.
+                                            </div>
+                                        {% else %}
+                                            {% for alert in proactiveData.alerts %}
+                                                <a href="{{ alert.link }}" class="text-decoration-none d-block p-2 rounded-2 mb-1 border-bottom-0 alert-item-hover" style="background: rgba(0,0,0,0.02);">
+                                                    <div class="d-flex align-items-start gap-2">
+                                                        <span class="badge bg-{{ alert.level }}-subtle text-{{ alert.level }} p-2 rounded-circle flex-shrink-0 mt-1">
+                                                            <i class="bi {{ alert.icon }}"></i>
+                                                        </span>
+                                                        <div class="flex-grow-1 overflow-hidden">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <strong class="small text-dark text-truncate">{{ alert.title }}</strong>
+                                                                <span class="badge bg-{{ alert.level }} text-white" style="font-size: 0.65rem;">{{ alert.count }}</span>
+                                                            </div>
+                                                            <p class="text-muted mb-1" style="font-size: 0.75rem; line-height: 1.3;">{{ alert.description }}</p>
+                                                            {% if alert.items|length > 0 %}
+                                                                <div class="text-secondary font-monospace" style="font-size: 0.7rem;">
+                                                                    &bull; {{ alert.items[0].label }}
+                                                                </div>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="p-2 bg-light border-top text-center">
+                                        <a href="{{ path('app_home') }}" class="btn btn-xs btn-outline-dark w-100 fw-semibold" style="font-size: 0.75rem;">
+                                            <i class="bi bi-speedometer2 me-1"></i>Voir la Synthèse sur le Dashboard
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bouton Bascule Thème Clair / Sombre -->
+                            <button type="button" 
+                                    class="btn btn-outline-secondary btn-sm rounded-circle d-flex align-items-center justify-content-center theme-toggle-btn shadow-sm" 
+                                    style="width: 32px; height: 32px; font-size: 0.85rem;"
+                                    data-action="click->theme#toggle"
+                                    data-shortcut="t"
+                                    aria-label="Basculer le thème (Raccourci T)" 
+                                    title="Basculer le thème clair / sombre (Raccourci : T)">
+                                <i class="bi bi-moon-stars theme-icon-moon"></i>
+                                <i class="bi bi-sun-fill text-warning theme-icon-sun d-none"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-circle d-flex align-items-center justify-content-center" 
+                                    style="width: 32px; height: 32px; font-size: 0.85rem;"
+                                    data-bs-toggle="modal" data-bs-target="#shortcutsHelp"
+                                    aria-label="Raccourcis clavier" title="Raccourcis clavier (?)">
+                                <i class="bi bi-question-circle"></i>
+                            </button>
+                        </div>
+
+                        <!-- User Profile dropdown / info -->
+                        <div class="dropdown">
+                            <button class="btn btn-light btn-sm border d-flex align-items-center gap-2 py-1 px-2 shadow-sm rounded-pill" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold" 
+                                     style="width: 28px; height: 28px; font-size: 0.75rem; background-color: var(--gta-orange);">
+                                    {% if app.user %}
+                                        {{ app.user.userIdentifier|slice(0, 2)|upper }}
+                                    {% else %}
+                                        <i class="bi bi-person-fill"></i>
+                                    {% endif %}
+                                </div>
+                                <span class="d-none d-sm-inline fw-semibold small text-dark">
+                                    {{ app.user ? app.user.userIdentifier|capitalize : 'Session Partagée' }}
+                                </span>
+                                <i class="bi bi-chevron-down small text-muted me-1"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-2" style="min-width: 250px; border-radius: 10px;">
+                                <li class="p-2 border-bottom mb-2 bg-light rounded-3">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold shadow-sm flex-shrink-0" 
+                                             style="width: 38px; height: 38px; font-size: 0.95rem; background: linear-gradient(135deg, var(--gta-orange) 0%, #ff8c1a 100%);">
+                                            {{ app.user ? app.user.userIdentifier|slice(0, 2)|upper : 'GTA' }}
+                                        </div>
+                                        <div class="overflow-hidden">
+                                            <div class="fw-bold text-dark text-truncate small">
+                                                {{ app.user ? app.user.userIdentifier|capitalize : 'Utilisateur' }}
+                                            </div>
+                                            <div>
+                                                {% if is_granted('ROLE_SUPER_ADMIN') %}
+                                                    <span class="badge bg-dark text-warning border small" style="font-size: 0.65rem;">
+                                                        <i class="bi bi-shield-lock-fill me-1"></i>Admin DSI
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary-subtle text-dark border small" style="font-size: 0.65rem;">
+                                                        <i class="bi bi-person-fill-check me-1"></i>Opérateur GTA
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 rounded-2" href="{{ path('app_profile') }}">
+                                        <i class="bi bi-person-badge text-warning fs-6"></i>
+                                        <span class="small fw-semibold">Mon Profil & Sécurité</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 rounded-2" href="{{ path('app_password_change') }}">
+                                        <i class="bi bi-shield-lock text-secondary fs-6"></i>
+                                        <span class="small">Modifier mot de passe</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <button type="button" class="dropdown-item py-2 d-flex align-items-center justify-content-between rounded-2" data-action="click->theme#toggle">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-circle-half text-warning fs-6"></i>
+                                            <span class="small fw-semibold">Thème d'affichage</span>
+                                        </div>
+                                        <span class="badge bg-secondary-subtle text-body border small theme-current-label">Clair</span>
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li>
+                                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 rounded-2 text-danger" href="{{ path('app_logout') }}">
+                                        <i class="bi bi-box-arrow-right fs-6"></i>
+                                        <span class="small fw-semibold">Déconnexion</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Page Content -->
+                <main class="app-content">
+                    {# Flash messages #}
+                    {% for label, messages in app.flashes %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ label == 'error' ? 'danger' : label }} alert-dismissible fade show shadow-sm" role="alert">
+                                {{ message|striptags('<code><strong><b><em><small><span><br><kbd>')|raw }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+
+                    {% block body %}{% endblock %}
+                </main>
+            </div>
+        </div>
+
+        <!-- Modale Universelle de Confirmation de Suppression GTA -->
+        <div class="modal fade" id="gtaDeleteModal" tabindex="-1" aria-labelledby="gtaDeleteModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+                <div class="modal-content modal-delete-content border-0 shadow-lg text-center p-4">
+                    <div class="delete-icon-wrapper mx-auto">
+                        <i class="bi bi-trash3-fill"></i>
+                    </div>
+                    
+                    <h5 class="fw-bold mb-2 text-dark" id="gtaDeleteModalLabel">Confirmation de suppression</h5>
+                    <p class="text-muted small mb-3">
+                        Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.
+                    </p>
+
+                    <div class="p-2 px-3 bg-secondary-subtle text-dark border rounded-3 small fw-bold text-truncate mb-2" id="gtaDeleteItemLabel">
+                        Élément sélectionné
+                    </div>
+
+                    {# Avertissement clignotant des conséquences ("scandale") en cas de relations existantes #}
+                    <div id="gtaDeleteScandalWarning" class="alert alert-blink-danger d-none my-3 text-start p-3 rounded-3">
+                        <div class="d-flex align-items-center gap-2 mb-1 text-danger fw-bold fs-6">
+                            <i class="bi bi-exclamation-octagon-fill fs-5 animate-shake"></i>
+                            <span>ATTENTION : IMPACT SUR DES DONNÉES LIÉES !</span>
+                        </div>
+                        <div id="gtaDeleteScandalText" class="small text-dark fw-medium lh-sm"></div>
+                    </div>
+
+                    <form method="post" id="gtaDeleteForm" action="">
+                        <input type="hidden" name="_token" id="gtaDeleteToken" value="">
+                        <div class="d-flex justify-content-center gap-2 mt-3">
+                            <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">
+                                Annuler
+                            </button>
+                            <button type="submit" id="gtaDeleteConfirmBtn" class="btn btn-danger px-4 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm">
+                                <i class="bi bi-trash3"></i>
+                                <span>Confirmer la suppression</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Gestionnaire global d'ouverture de la modale de suppression GTA (compatible Turbo Drive et rechargements)
+            document.addEventListener('show.bs.modal', (event) => {
+                if (!event.target || event.target.id !== 'gtaDeleteModal') return;
+                const button = event.relatedTarget;
+                if (!button) return;
+                
+                const actionUrl = button.getAttribute('data-delete-url');
+                const itemName = button.getAttribute('data-item-name') || 'cet élément';
+                const token = button.getAttribute('data-token') || '';
+                const scandalText = button.getAttribute('data-scandal-text') || button.getAttribute('data-danger-warning') || '';
+                const scandalCount = parseInt(button.getAttribute('data-scandal-count') || '0', 10);
+
+                const form = document.getElementById('gtaDeleteForm');
+                const itemLabel = document.getElementById('gtaDeleteItemLabel');
+                const tokenInput = document.getElementById('gtaDeleteToken');
+                const scandalContainer = document.getElementById('gtaDeleteScandalWarning');
+                const scandalContent = document.getElementById('gtaDeleteScandalText');
+                const confirmBtn = document.getElementById('gtaDeleteConfirmBtn');
+
+                if (form) form.action = actionUrl;
+                if (itemLabel) itemLabel.textContent = itemName;
+                if (tokenInput) tokenInput.value = token;
+
+                if (scandalText.trim() !== '' || scandalCount > 0) {
+                    if (scandalContainer) scandalContainer.classList.remove('d-none');
+                    if (scandalContent) scandalContent.innerHTML = scandalText;
+                    if (confirmBtn) {
+                        confirmBtn.className = 'btn btn-danger px-4 fw-bold d-inline-flex align-items-center gap-2 shadow btn-blink-danger';
+                        confirmBtn.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i><span>Supprimer malgré les risques</span>';
+                    }
+                } else {
+                    if (scandalContainer) scandalContainer.classList.add('d-none');
+                    if (scandalContent) scandalContent.innerHTML = '';
+                    if (confirmBtn) {
+                        confirmBtn.className = 'btn btn-danger px-4 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm';
+                        confirmBtn.innerHTML = '<i class="bi bi-trash3"></i><span>Confirmer la suppression</span>';
+                    }
+                }
+            });
+        </script>
+
+        {# ── Auto-Search : soumission automatique avec debounce sur tous les champs name="q" ── #}
+        <script>
+        (function () {
+            'use strict';
+
+            var DEBOUNCE_MS   = 380;
+            var STORAGE_KEY   = 'gta_search_focus';
+
+            /* ── Restaurer le focus + position curseur après rechargement ── */
+            function restoreFocus() {
+                var saved = null;
+                try { saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY)); } catch(e) {}
+                if (!saved) return;
+
+                /* Chercher le champ correspondant à l'URL sauvegardée */
+                if (saved.href && window.location.href.split('?')[0] !== saved.href.split('?')[0]) return;
+
+                var input = document.querySelector('input[name="q"]');
+                if (!input || input.value === '') return;
+
+                sessionStorage.removeItem(STORAGE_KEY);
+
+                /* Focus sans scroll de la page */
+                input.focus({ preventScroll: true });
+
+                /* Remettre le curseur à la fin (ou à la position mémorisée) */
+                var pos = typeof saved.pos === 'number' ? Math.min(saved.pos, input.value.length) : input.value.length;
+                try {
+                    input.setSelectionRange(pos, pos);
+                } catch (e) {
+                    /* ignore — certains types d'input ne supportent pas setSelectionRange */
+                }
+            }
+
+            /* ── Initialiser la recherche auto sur chaque input[name="q"] ── */
+            function initAutoSearch() {
+                document.querySelectorAll('input[name="q"]').forEach(function (input) {
+                    if (input.dataset.autoSearchInit) return;
+                    input.dataset.autoSearchInit = 'true';
+
+                    var timer = null;
+                    var form  = input.closest('form');
+                    if (!form) return;
+
+                    function submitSearch() {
+                        /* Sauvegarder position curseur avant soumission */
+                        try {
+                            sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+                                href: window.location.href,
+                                pos: input.selectionEnd
+                            }));
+                        } catch(e) {}
+                        form.submit();
+                    }
+
+                    input.addEventListener('input', function () {
+                        clearTimeout(timer);
+                        /* Feedback visuel discret : léger changement de bordure */
+                        input.classList.add('border-warning');
+                        timer = setTimeout(function () {
+                            input.classList.remove('border-warning');
+                            submitSearch();
+                        }, DEBOUNCE_MS);
+                    });
+
+                    /* Enter = soumission immédiate */
+                    input.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            clearTimeout(timer);
+                            input.classList.remove('border-warning');
+                            submitSearch();
+                        }
+                        /* Escape = vider + soumettre */
+                        if (e.key === 'Escape' && input.value !== '') {
+                            e.preventDefault();
+                            clearTimeout(timer);
+                            input.value = '';
+                            submitSearch();
+                        }
+                    });
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    restoreFocus();
+                    initAutoSearch();
+                });
+            } else {
+                restoreFocus();
+                initAutoSearch();
+            }
+        })();
+        </script>
+
+        {# ── Navigation fluide du menu : zéro rechargement de page ── #}
+        <script>
+        (function() {
+            function preventMenuReloads() {
+                document.querySelectorAll('.sidebar-nav a.nav-link').forEach(function(link) {
+                    if (link.dataset.navGuardInit) return;
+                    link.dataset.navGuardInit = 'true';
+
+                    link.addEventListener('click', function(e) {
+                        // Liens collapse (accordéons Équipements / Composants)
+                        if (link.getAttribute('data-bs-toggle') === 'collapse' || (link.getAttribute('href') && link.getAttribute('href').startsWith('#'))) {
+                            return;
+                        }
+
+                        // Si on clique sur le lien correspondant à la page déjà affichée, ne pas recharger
+                        try {
+                            var currentUrl = new URL(window.location.href);
+                            var targetUrl  = new URL(link.href, window.location.origin);
+                            if (currentUrl.pathname === targetUrl.pathname && currentUrl.search === targetUrl.search) {
+                                e.preventDefault();
+                            }
+                        } catch(err) {}
+                    });
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', preventMenuReloads);
+            } else {
+                preventMenuReloads();
+            }
+            document.addEventListener('turbo:load', preventMenuReloads);
+        })();
+        </script>
+
+        {% block modals %}{% endblock %}
+
+        {# ── Bouton Flottant d'Actions Rapides & Raccourcis (FAB Speed Dial) ── #}
+        <div class="gta-fab-backdrop" id="gtaFabBackdrop" onclick="toggleGtaFab(false)"></div>
+        <div class="gta-fab-container" id="gtaFabContainer">
+            {# Bouton Déclencheur Principal #}
+            <button type="button" 
+                    class="gta-fab-btn-main" 
+                    id="gtaFabTrigger"
+                    onclick="toggleGtaFab()" 
+                    title="Actions rapides & Raccourcis" 
+                    aria-label="Actions rapides">
+                <i class="bi bi-plus-lg fs-3"></i>
+            </button>
+
+            {# Menu déplié (Speed Dial) #}
+            <div class="gta-fab-options">
+                {# 1. Nouvel Équipement #}
+                <a href="{{ path('app_equipement_new') }}" 
+                   class="gta-fab-item" 
+                   title="Nouvel Équipement" 
+                   alt="Nouvel Équipement" 
+                   aria-label="Nouvel Équipement">
+                    <div class="gta-fab-sub-btn" style="color: var(--gta-orange);" title="Nouvel Équipement" alt="Nouvel Équipement">
+                        <i class="bi bi-pc-display-horizontal"></i>
+                    </div>
+                </a>
+
+                {# 2. Générer / Exporter un Rapport #}
+                <a href="{{ path('app_rapport_index') }}" 
+                   class="gta-fab-item" 
+                   title="Générer / Exporter un Rapport" 
+                   alt="Générer / Exporter un Rapport" 
+                   aria-label="Générer / Exporter un Rapport">
+                    <div class="gta-fab-sub-btn" style="color: #0284c7;" title="Générer / Exporter un Rapport" alt="Générer / Exporter un Rapport">
+                        <i class="bi bi-file-earmark-excel"></i>
+                    </div>
+                </a>
+
+                {# 3. Paramètres du Profil & Sécurité #}
+                <a href="{{ path('app_profile') }}" 
+                   class="gta-fab-item" 
+                   title="Paramètres & Profil" 
+                   alt="Paramètres & Profil" 
+                   aria-label="Paramètres & Profil">
+                    <div class="gta-fab-sub-btn" style="color: #8b5cf6;" title="Paramètres & Profil" alt="Paramètres & Profil">
+                        <i class="bi bi-person-gear"></i>
+                    </div>
+                </a>
+
+                {# 4. Aide & Guide des Raccourcis clavier (Modale) #}
+                <div class="gta-fab-item" 
+                     style="cursor: pointer;" 
+                     data-bs-toggle="modal" 
+                     data-bs-target="#shortcutsHelp" 
+                     onclick="toggleGtaFab(false)"
+                     title="Guide des Raccourcis" 
+                     alt="Guide des Raccourcis" 
+                     aria-label="Guide des Raccourcis">
+                    <div class="gta-fab-sub-btn" style="color: #d97706;" title="Guide des Raccourcis" alt="Guide des Raccourcis">
+                        <i class="bi bi-keyboard"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        function toggleGtaFab(forceState) {
+            var container = document.getElementById('gtaFabContainer');
+            var backdrop = document.getElementById('gtaFabBackdrop');
+            if (!container || !backdrop) return;
+
+            var isActive = container.classList.contains('is-active');
+            var shouldOpen = typeof forceState === 'boolean' ? forceState : !isActive;
+
+            if (shouldOpen) {
+                container.classList.add('is-active');
+                backdrop.classList.add('is-active');
+            } else {
+                container.classList.remove('is-active');
+                backdrop.classList.remove('is-active');
+            }
+        }
+
+        // Fermer le FAB avec la touche Échap
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                toggleGtaFab(false);
+            }
+        });
+
+        // Fermer le FAB lors des transitions de navigation Turbo
+        document.addEventListener('turbo:before-visit', function() {
+            toggleGtaFab(false);
+        });
+        </script>
+
+        {% include '_shortcuts_help.html.twig' %}
+    </body>
+</html>

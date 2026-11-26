@@ -1,0 +1,163 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Attributions & Prêts | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-2 flex-shrink-0">
+    <div>
+        <h1 class="h3 fw-bold mb-1" style="color: #121212;">Attributions & Prêts de Matériel</h1>
+        <p class="text-muted mb-0 small">Traçabilité des dotations informatiques, détenteurs, retours et prêts temporaires</p>
+    </div>
+    <a href="{{ path('app_attribution_new') }}" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm" data-shortcut="n" title="Raccourci : N">
+        <i class="bi bi-plus-lg"></i>
+        <span>Nouvelle Attribution</span>
+    </a>
+</div>
+
+{# Barre de Recherche #}
+<div class="card mb-3 flex-shrink-0">
+    <div class="card-body p-2 px-3">
+        <form method="get" class="d-flex align-items-center gap-2">
+            {% if current_filter != 'all' %}
+                <input type="hidden" name="statut" value="{{ current_filter }}">
+            {% endif %}
+            <div class="input-group input-group-sm flex-grow-1">
+                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                <input type="text" name="q" value="{{ current_search }}" class="form-control bg-light border-start-0" placeholder="Rechercher par bénéficiaire, service, matériel, motif..." autofocus data-shortcut="/">
+            </div>
+            {% if current_search is not empty %}
+                <a href="{{ path('app_attribution_index', {'statut': current_filter}) }}" class="btn btn-outline-secondary btn-sm" title="Effacer la recherche">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+{# Filtres (Fixe) #}
+<div class="card mb-3 flex-shrink-0">
+    <div class="card-body p-2 d-flex gap-2">
+        <a href="{{ path('app_attribution_index', {'statut': 'all', 'q': current_search}) }}" class="btn btn-sm {{ current_filter == 'all' ? 'btn-dark' : 'btn-outline-secondary' }}">
+            Toutes les attributions
+        </a>
+        <a href="{{ path('app_attribution_index', {'statut': 'active', 'q': current_search}) }}" class="btn btn-sm {{ current_filter == 'active' ? 'btn-success' : 'btn-outline-success' }}">
+            <i class="bi bi-check-circle me-1"></i>En cours d'utilisation
+        </a>
+        <a href="{{ path('app_attribution_index', {'statut': 'returned', 'q': current_search}) }}" class="btn btn-sm {{ current_filter == 'returned' ? 'btn-secondary' : 'btn-outline-secondary' }}">
+            <i class="bi bi-arrow-return-left me-1"></i>Matériels Restitués
+        </a>
+    </div>
+</div>
+
+{# Tableau des Attributions dans son conteneur indépendant à défilement #}
+<div class="card flex-grow-1">
+    <div class="scroll-table-container">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small">
+                <tr>
+                    <th>Matériel Affecté</th>
+                    <th>Bénéficiaire / Collaborateur</th>
+                    <th>Date d'Attribution</th>
+                    <th>Restitution</th>
+                    <th>Statut</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for att in attributions %}
+                    <tr data-shortcuts-target="row" data-action="click->shortcuts#pick">
+                        <td>
+                            {% if att.equipement %}
+                                <a href="{{ path('app_equipement_show', {'id': att.equipement.id}) }}" class="fw-bold text-dark text-decoration-none">
+                                    {{ att.equipement.nom }}
+                                </a>
+                                <div class="small text-muted font-monospace">{{ att.equipement.numeroSerie }}</div>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border">
+                                    <i class="bi bi-archive me-1"></i>Matériel archivé / retiré
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-dark">{{ att.beneficiaireNom }}</div>
+                            <small class="text-muted">{{ att.beneficiaireService ?: 'GTAC2A-IARDT' }}</small>
+                            {% if att.motif %}
+                                <div class="small text-secondary fst-italic">"{{ att.motif }}"</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="small font-monospace">{{ att.dateDebut|date('d/m/Y H:i') }}</span>
+                        </td>
+                        <td>
+                            {% if att.dateRestitution %}
+                                <span class="badge bg-secondary-subtle text-dark border small">
+                                    Restitué le {{ att.dateRestitution|date('d/m/Y') }}
+                                </span>
+                            {% elseif att.dateFinPrevue %}
+                                <small class="text-warning">Prévu le {{ att.dateFinPrevue|date('d/m/Y') }}</small>
+                            {% else %}
+                                <small class="text-muted">Indéterminé</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if att.statut == 'En cours' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-clock-history me-1"></i>En cours
+                                </span>
+                            {% elseif att.statut == 'Restitué' %}
+                                <span class="badge bg-light text-dark border">
+                                    <i class="bi bi-check-all me-1"></i>Restitué
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-dark border">{{ att.statut }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex justify-content-end gap-1">
+                                {% if att.statut == 'En cours' %}
+                                    <form method="post" action="{{ path('app_attribution_restituer', {'id': att.id}) }}" onsubmit="return confirm('Confirmer la restitution de cet équipement ? Il sera remis en stock disponible.');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('restituer' ~ att.id) }}">
+                                        <button type="submit" class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1" title="Restituer l'équipement">
+                                            <i class="bi bi-arrow-return-left"></i>
+                                            <span class="d-none d-md-inline">Restituer</span>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                <a href="{{ path('app_attribution_edit', {'id': att.id}) }}" class="btn btn-outline-secondary btn-sm" title="Modifier" data-shortcut="m">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% set attWarning = '' %}
+                                {% if att.statut == 'En cours' %}
+                                    {% set attWarning = '⚠️ Cette attribution est actuellement active pour le collaborateur <strong>' ~ att.beneficiaireNom ~ '</strong>. La supprimer sans restitution laissera l\'équipement sans traçabilité de retour en stock !' %}
+                                {% endif %}
+                                <button type="button" 
+                                        class="btn btn-outline-danger btn-sm" 
+                                        title="Supprimer cette attribution"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#gtaDeleteModal"
+                                        data-delete-url="{{ path('app_attribution_delete', {'id': att.id}) }}"
+                                        data-item-name="Attribution de {{ att.equipement ? att.equipement.nom : 'Matériel' }} à {{ att.beneficiaireNom }}"
+                                        data-token="{{ csrf_token('delete' ~ att.id) }}"
+                                        data-scandal-count="{{ attWarning ? 1 : 0 }}"
+                                        data-danger-warning="{{ attWarning }}"
+                                        data-shortcut="s">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <i class="bi bi-inbox text-muted fs-1 d-block mb-2"></i>
+                            <h6 class="fw-bold text-dark">Aucune attribution trouvée</h6>
+                            <p class="text-muted small mb-3">Affectez un ordinateur ou matériel à un collaborateur GTA.</p>
+                            <a href="{{ path('app_attribution_new') }}" class="btn btn-primary btn-sm">Nouvelle Attribution</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

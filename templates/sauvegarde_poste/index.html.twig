@@ -1,0 +1,1352 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Sauvegardes & Sécurité des Postes | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+{# En-tête de la page #}
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-3 gap-2 flex-shrink-0">
+    <div>
+        <h1 class="h3 fw-bold mb-1" style="color: #121212;">Sauvegardes & Restauration Postes</h1>
+        <p class="text-muted mb-0 small">Points de restauration système à distance et sauvegarde incrémentielle des fichiers utilisateurs (Bureau, Documents, Maquettes)</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="button" 
+                class="btn btn-warning d-inline-flex align-items-center gap-2 shadow-sm text-dark fw-semibold" 
+                data-bs-toggle="modal" 
+                data-bs-target="#modalAutorisationBackup"
+                data-action="CAMPAGNE"
+                data-equipement-id="0"
+                data-machine-name="Tous les ordinateurs du parc (Campagne Globale)"
+                data-beneficiaire="Ensemble des collaborateurs du domaine"
+                onclick="window.ouvrirModalAutorisation('CAMPAGNE', 0, 'Tous les ordinateurs du parc (Campagne Globale)', 'Ensemble des collaborateurs du domaine')">
+            <i class="bi bi-broadcast"></i>
+            <span>⚡ Campagne Points de Restauration</span>
+        </button>
+    </div>
+</div>
+
+{# Cartes de statut global #}
+<div class="row g-2 mb-3 flex-shrink-0">
+    <div class="col-6 col-md-3">
+        <div class="card p-2 text-center border-0 shadow-sm h-100">
+            <span class="text-muted small">Total Postes Clients</span>
+            <span class="fs-4 fw-bold text-dark">{{ stats.total }}</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-2 text-center border-0 shadow-sm h-100 border-start border-4 border-success">
+            <span class="text-muted small">🛡️ Postes Sécurisés (&lt; 7j)</span>
+            <span class="fs-4 fw-bold text-success">{{ stats.securises }}</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-2 text-center border-0 shadow-sm h-100 border-start border-4 border-warning">
+            <span class="text-muted small">⚠️ À Renouveler (&gt; 7j)</span>
+            <span class="fs-4 fw-bold text-warning">{{ stats.a_renouveler }}</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-2 text-center border-0 shadow-sm h-100 border-start border-4 border-danger">
+            <span class="text-muted small">🚨 Non Protégés / En retard</span>
+            <span class="fs-4 fw-bold text-danger">{{ stats.danger }}</span>
+        </div>
+    </div>
+</div>
+
+{# Recherche & Filtres #}
+<div class="card mb-3 flex-shrink-0">
+    <div class="card-body p-2 px-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-12 col-md-6">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" value="{{ current_search }}" class="form-control bg-light border-start-0" placeholder="Rechercher par bénéficiaire, machine, service, IP..." data-shortcut="/">
+                </div>
+            </div>
+            <div class="col-6 col-md-4">
+                <select name="securite" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="all" {{ current_securite == 'all' ? 'selected' : '' }}>-- Tous les états de sécurité --</option>
+                    <option value="excellent" {{ current_securite == 'excellent' ? 'selected' : '' }}>🛡️ Sécurisé (Récent)</option>
+                    <option value="warning" {{ current_securite == 'warning' ? 'selected' : '' }}>⚠️ À renouveler</option>
+                    <option value="danger" {{ current_securite == 'danger' ? 'selected' : '' }}>🚨 Non protégé / En retard</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-dark w-100">Filtrer</button>
+                {% if current_search is not empty or current_securite != 'all' %}
+                    <a href="{{ path('app_sauvegarde_poste_index') }}" class="btn btn-outline-secondary btn-sm" title="Réinitialiser les filtres">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════
+    Layout côte à côte : Tableau des postes (gauche) + Journal ops (droite)
+    Couleurs 100% Bootstrap (data-bs-theme compatible light/dark)
+═══════════════════════════════════════════════════════════════════════════ #}
+<div class="d-flex gap-3 align-items-start" style="min-height: 0;">
+
+    {# ── PANNEAU GAUCHE : Tableau des postes ── #}
+    <div class="card flex-grow-1 shadow-sm overflow-hidden" style="min-width: 0; border: 1px solid var(--bs-border-color);">
+
+        {# En-tête — utilise les classes Bootstrap body-secondary adaptatives #}
+        <div class="card-header py-2 px-3 d-flex justify-content-between align-items-center border-bottom">
+            <div class="d-flex align-items-center gap-2">
+                <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width: 30px; height: 30px;">
+                    <i class="bi bi-hdd-network-fill text-primary" style="font-size: 0.82rem;"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-body" style="font-size: 0.85rem; letter-spacing: 0.02em;">
+                        Parc Informatique — Domaine GTAC2A
+                    </div>
+                    <div class="text-primary" style="font-size: 0.7rem; opacity: 0.85;">
+                        Surveillance &amp; Protection des postes clients
+                    </div>
+                </div>
+            </div>
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 d-flex align-items-center gap-1"
+                  style="font-size: 0.72rem;">
+                <i class="bi bi-pc-display-horizontal"></i>
+                {{ ordinateurs|length }} poste(s) surveillé(s)
+            </span>
+        </div>
+
+        {# Tableau défilant #}
+        <div style="overflow-y: auto; max-height: 520px;">
+            <table class="table table-hover align-middle mb-0" style="font-size: 0.82rem;">
+                <thead class="table-light sticky-top" style="z-index: 2;">
+                    <tr class="border-bottom-2">
+                        <th class="py-2 px-3 text-uppercase text-body-secondary fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.06em;">Poste / Machine</th>
+                        <th class="py-2 px-3 text-uppercase text-body-secondary fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.06em;">Bénéficiaire</th>
+                        <th class="py-2 px-3 text-uppercase text-body-secondary fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.06em;">OS</th>
+                        <th class="py-2 px-3 text-uppercase text-body-secondary fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.06em;">Dernier Point</th>
+                        <th class="py-2 px-3 text-uppercase text-body-secondary fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.06em;">Dernière Sauvegarde</th>
+                        <th class="py-2 px-3 text-uppercase text-body-secondary fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.06em;">Sécurité</th>
+                        <th class="py-2 px-3 text-end text-uppercase text-body-secondary fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.06em;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in ordinateurs %}
+                        {% set eq = item.equipement %}
+                        <tr id="row-pc-{{ eq.id }}">
+                            <td class="py-2 px-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded bg-body-secondary d-flex align-items-center justify-content-center flex-shrink-0"
+                                         style="width: 30px; height: 30px;">
+                                        <i class="bi bi-laptop text-body-secondary" style="font-size: 0.85rem;"></i>
+                                    </div>
+                                    <div>
+                                        <a href="javascript:void(0)" class="fw-bold text-body text-decoration-none" style="font-size: 0.82rem;" onclick="window.ouvrirFichePoste({{ eq.id }})" title="Consulter la fiche détaillée du poste">
+                                            {{ item.nom }} <i class="bi bi-box-arrow-up-right ms-1 text-primary" style="font-size: 0.65rem;"></i>
+                                        </a>
+                                        <div class="text-body-secondary d-flex align-items-center gap-1" style="font-size: 0.7rem;">
+                                            <span class="font-monospace">{{ item.ip }}</span>
+                                            <button type="button"
+                                                    class="btn p-0 border-0 bg-transparent lh-1"
+                                                    title="Test Ping en direct"
+                                                    onclick="window.testerPingLigne({{ eq.id }}, this)">
+                                                <i class="bi bi-activity text-primary" style="font-size: 0.75rem;"></i>
+                                                <span class="ping-lbl" style="font-size: 0.68rem;">Ping</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-2 px-3">
+                                {% if item.beneficiaire %}
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                                             style="width: 28px; height: 28px; font-size: 0.72rem;">
+                                            {{ item.beneficiaire|slice(0, 2)|upper }}
+                                        </div>
+                                        <div style="min-width: 0;">
+                                            <div class="fw-semibold text-body text-truncate" style="max-width: 150px; font-size: 0.8rem;" title="{{ item.beneficiaire }}">
+                                                {{ item.beneficiaire }}
+                                            </div>
+                                            {% if item.beneficiaire_service %}
+                                                <span class="text-body-secondary" style="font-size: 0.68rem;">
+                                                    <i class="bi bi-building"></i> {{ item.beneficiaire_service }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <span class="text-body-secondary" style="font-size: 0.75rem;">
+                                        <i class="bi bi-dash-circle"></i> Libre
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2 px-3">
+                                {% if item.os %}
+                                    <span class="badge bg-body-secondary text-body border" style="font-size: 0.68rem;">{{ item.os }}</span>
+                                {% else %}
+                                    <span class="text-body-secondary" style="font-size: 0.72rem;">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2 px-3">
+                                {% if item.dernier_point %}
+                                    <div class="fw-semibold text-body" style="font-size: 0.75rem;">
+                                        <i class="bi bi-clock-history text-primary me-1"></i>{{ item.dernier_point.dateExecution|date('d/m/y H:i') }}
+                                    </div>
+                                    <span class="badge bg-primary-subtle text-primary" style="font-size: 0.65rem;">
+                                        {{ item.dernier_point.tailleEstimee ?: 'Actif' }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger-subtle text-danger" style="font-size: 0.68rem;">Aucun</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2 px-3">
+                                {% if item.derniere_sauvegarde %}
+                                    <div class="fw-semibold text-body" style="font-size: 0.75rem;">
+                                        <i class="bi bi-check2-circle text-success me-1"></i>{{ item.derniere_sauvegarde.dateExecution|date('d/m/y H:i') }}
+                                    </div>
+                                    <span class="badge bg-success-subtle text-success" style="font-size: 0.65rem;">Incrémentiel</span>
+                                {% else %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis" style="font-size: 0.68rem;">Jamais</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2 px-3">
+                                <span class="badge {{ item.securite.badge }} d-inline-flex align-items-center gap-1" style="font-size: 0.7rem;">
+                                    <i class="bi {{ item.securite.icone }}"></i>
+                                    {{ item.securite.label }}
+                                </span>
+                            </td>
+                            <td class="py-2 px-3 text-end">
+                                {% set labelBenef = item.beneficiaire ? (item.beneficiaire ~ (item.beneficiaire_service ? ' (' ~ item.beneficiaire_service ~ ')' : '')) : 'Non attribué' %}
+                                <div class="d-flex justify-content-end gap-1 flex-nowrap">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
+                                            style="font-size: 0.72rem;"
+                                            title="Consulter la fiche complète de sécurité du poste"
+                                            onclick="window.ouvrirFichePoste({{ eq.id }})">
+                                        <i class="bi bi-eye"></i>
+                                        <span>Fiche</span>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                                            style="font-size: 0.72rem;"
+                                            title="Point de Restauration Windows à distance"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalAutorisationBackup"
+                                            data-action="POINT_RESTAURATION"
+                                            data-equipement-id="{{ eq.id }}"
+                                            data-machine-name="{{ item.nom|e('html_attr') }}"
+                                            data-beneficiaire="{{ labelBenef|e('html_attr') }}"
+                                            data-code-inventaire="{{ item.code_inventaire|e('html_attr') }}"
+                                            data-session="{{ item.session_suggeree|e('html_attr') }}"
+                                            data-preview-path="{{ item.preview_path|e('html_attr') }}"
+                                            onclick="window.ouvrirModalAutorisation('POINT_RESTAURATION', {{ eq.id }}, '{{ item.nom|e('js') }}', '{{ labelBenef|e('js') }}', '{{ item.code_inventaire|e('js') }}', '{{ item.session_suggeree|e('js') }}', '{{ item.preview_path|e('js') }}')">
+                                        <i class="bi bi-lightning-charge-fill"></i>
+                                        <span>Point</span>
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1"
+                                            style="font-size: 0.72rem;"
+                                            title="Sauvegarde Incrémentielle : Documents, Bureau, Musique, Vidéos, Images, Téléchargements"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalAutorisationBackup"
+                                            data-action="SAUVEGARDE_PROFIL"
+                                            data-equipement-id="{{ eq.id }}"
+                                            data-machine-name="{{ item.nom|e('html_attr') }}"
+                                            data-beneficiaire="{{ labelBenef|e('html_attr') }}"
+                                            data-code-inventaire="{{ item.code_inventaire|e('html_attr') }}"
+                                            data-session="{{ item.session_suggeree|e('html_attr') }}"
+                                            data-preview-path="{{ item.preview_path|e('html_attr') }}"
+                                            onclick="window.ouvrirModalAutorisation('SAUVEGARDE_PROFIL', {{ eq.id }}, '{{ item.nom|e('js') }}', '{{ labelBenef|e('js') }}', '{{ item.code_inventaire|e('js') }}', '{{ item.session_suggeree|e('js') }}', '{{ item.preview_path|e('js') }}')">
+                                        <i class="bi bi-cloud-arrow-up-fill"></i>
+                                        <span>Sauvegarder</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <i class="bi bi-pc-display text-body-secondary fs-1 d-block mb-2"></i>
+                                <h6 class="fw-bold text-body">Aucun ordinateur trouvé</h6>
+                                <p class="text-body-secondary small mb-0">Ajoutez des ordinateurs fixes ou portables dans le menu Matériels.</p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# ── PANNEAU DROIT : Journal des opérations ── #}
+    <div class="card shadow-sm flex-shrink-0 overflow-hidden" style="width: 400px; min-width: 340px; border: 1px solid var(--bs-border-color);">
+
+        {# En-tête journal — classes Bootstrap pures #}
+        <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between border-bottom">
+            <div class="d-flex align-items-center gap-2">
+                {# Indicateur live pulsant #}
+                <div class="position-relative flex-shrink-0" style="width: 10px; height: 10px;">
+                    <span class="position-absolute top-0 start-0 w-100 h-100 rounded-circle bg-success"
+                          style="animation: gparc-pulse 2s ease-in-out infinite; opacity: 0.6;"></span>
+                    <span class="position-absolute top-0 start-0 w-100 h-100 rounded-circle bg-success"></span>
+                </div>
+                <div>
+                    <div class="fw-bold text-body" style="font-size: 0.83rem; letter-spacing: 0.03em;">
+                        Journal des Opérations
+                    </div>
+                    <div class="text-success" style="font-size: 0.68rem; letter-spacing: 0.04em; opacity: 0.9;">
+                        LIVE · Audit Trail · G-PARC
+                    </div>
+                </div>
+            </div>
+            <span class="badge bg-success-subtle text-success border border-success border-opacity-25"
+                  style="font-size: 0.68rem;">
+                {{ historique|length }} entrée(s)
+            </span>
+        </div>
+
+        {# Timeline défilante — fond adaptatif #}
+        <div id="journal-feed" class="bg-body-tertiary"
+             style="overflow-y: auto; max-height: 520px; padding: 12px 14px;">
+
+            {% if historique is empty %}
+                <div class="d-flex flex-column align-items-center justify-content-center py-5 text-body-secondary">
+                    <div class="rounded-circle bg-body-secondary d-flex align-items-center justify-content-center mb-3"
+                         style="width: 52px; height: 52px;">
+                        <i class="bi bi-journal-x fs-4"></i>
+                    </div>
+                    <div class="fw-semibold small">Aucune opération enregistrée</div>
+                    <div class="text-body-secondary text-center" style="font-size: 0.72rem; max-width: 220px; margin-top: 4px;">
+                        Le journal se remplit automatiquement après chaque action de protection.
+                    </div>
+                </div>
+            {% else %}
+                {% for h in historique %}
+                    {% set isPoint   = h.isPointRestauration %}
+                    {% set iconClass = isPoint ? 'bi-lightning-charge-fill' : 'bi-cloud-arrow-up-fill' %}
+                    {% set typeLabel = isPoint ? 'Point Restauration' : 'Sauvegarde Profil' %}
+                    {% set badgeType = isPoint ? 'bg-primary-subtle text-primary' : 'bg-success-subtle text-success' %}
+
+                    <div class="journal-entry d-flex gap-2 mb-3"
+                         style="animation: gparc-fadein 0.3s ease both;">
+
+                        {# Colonne icône + trait vertical #}
+                        <div class="d-flex flex-column align-items-center flex-shrink-0" style="width: 30px;">
+                            <div class="rounded-circle {{ badgeType }} d-flex align-items-center justify-content-center flex-shrink-0 border"
+                                 style="width: 26px; height: 26px;">
+                                <i class="bi {{ iconClass }}" style="font-size: 0.72rem;"></i>
+                            </div>
+                            {% if not loop.last %}
+                                <div class="bg-border flex-grow-1 my-1" style="width: 1.5px; min-height: 10px; background: var(--bs-border-color);"></div>
+                            {% endif %}
+                        </div>
+
+                        {# Contenu #}
+                        <div class="flex-grow-1 pb-1" style="min-width: 0;">
+                            <div class="d-flex justify-content-between align-items-baseline gap-1 mb-1">
+                                <div class="fw-bold text-body text-truncate" style="font-size: 0.8rem; max-width: 170px;" title="{{ h.nomMachine }}">
+                                    <i class="bi bi-laptop me-1 text-body-secondary" style="font-size: 0.68rem;"></i>{{ h.nomMachine }}
+                                </div>
+                                <span class="text-body-secondary font-monospace flex-shrink-0" style="font-size: 0.64rem;">
+                                    {{ h.dateExecution|date('d/m H:i') }}
+                                </span>
+                            </div>
+
+                            <div class="d-flex align-items-center flex-wrap gap-1 mb-1">
+                                <span class="badge {{ badgeType }} border d-inline-flex align-items-center gap-1"
+                                      style="font-size: 0.64rem; font-weight: 600;">
+                                    <i class="bi {{ iconClass }}"></i>{{ typeLabel }}
+                                </span>
+                                <span class="badge bg-success-subtle text-success" style="font-size: 0.62rem;">
+                                    <i class="bi bi-check-circle-fill"></i> Succès
+                                </span>
+                                {% if h.tailleEstimee %}
+                                    <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.62rem;">
+                                        {{ h.tailleEstimee }}
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-end gap-1">
+                                <div class="text-body-secondary text-truncate" style="font-size: 0.69rem; max-width: 230px; line-height: 1.3;"
+                                     title="{{ h.details }}">
+                                    {{ h.details|split('\n')|first }}
+                                </div>
+                                <span class="text-body-secondary fw-semibold flex-shrink-0" style="font-size: 0.62rem; white-space: nowrap;">
+                                    <i class="bi bi-person-badge-fill me-1"></i>{{ h.lancePar ?: 'admin' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+
+                <div class="text-center mt-2 text-body-secondary" style="font-size: 0.64rem; letter-spacing: 0.06em;">
+                    <i class="bi bi-three-dots"></i> FIN DU JOURNAL · {{ historique|length }} opération(s) <i class="bi bi-three-dots"></i>
+                </div>
+            {% endif %}
+        </div>
+
+        {# Pied adaptatif #}
+        <div class="card-footer border-top py-2 px-3 d-flex justify-content-between align-items-center bg-body-tertiary"
+             style="font-size: 0.68rem;">
+            <span class="text-body-secondary"><i class="bi bi-arrow-clockwise me-1"></i>Actualisé à chaque action</span>
+            <span id="journal-last-update" class="font-monospace text-body-secondary">
+                {{ "now"|date('H:i:s') }}
+            </span>
+        </div>
+    </div>
+
+</div>{# /d-flex gap-3 #}
+
+<style>
+@keyframes gparc-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50%       { transform: scale(2.4); opacity: 0; }
+}
+@keyframes gparc-fadein {
+    from { opacity: 0; transform: translateY(5px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+/* Sticky thead dans un div overflow-y */
+.card .table thead th { position: sticky; top: 0; z-index: 2; }
+</style>
+
+{% endblock %}
+
+{% block modals %}
+{# ═══════════════════════════════════════════════════════════════════════════
+   Modale Fiche Détaillée de Sécurité, Sauvegarde & Continuité du Poste
+═══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalFichePoste" tabindex="-1" aria-labelledby="modalFichePosteLabel" aria-hidden="true" style="z-index: 1055;">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-bottom py-2 px-3 bg-body-tertiary">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                        <i class="bi bi-shield-check text-primary fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h5 class="modal-title fw-bold text-body mb-0" id="fiche-nom-machine">PC-COMPTA-01</h5>
+                            <span class="badge bg-secondary-subtle text-body border" id="fiche-os-badge">Windows</span>
+                            <span class="badge bg-success-subtle text-success border" id="fiche-statut-badge">En service</span>
+                        </div>
+                        <div class="text-body-secondary small" style="font-size: 0.72rem;">
+                            Fiche de Sécurité, Sauvegarde &amp; Profil Utilisateur — GTA
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body p-3" id="fiche-modal-body">
+                <div id="fiche-loading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="text-body-secondary mt-2 small">Chargement de la fiche de sécurité...</div>
+                </div>
+
+                <div id="fiche-content" class="d-none">
+                    {# 3 Cartes principales : Matériel, Bénéficiaire/Session, Sécurité Globale #}
+                    <div class="row g-3 mb-3">
+                        {# 1. Matériel & Réseau #}
+                        <div class="col-12 col-md-4">
+                            <div class="card h-100 border p-3 bg-body-tertiary">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="small fw-bold text-uppercase text-body-secondary"><i class="bi bi-pc-display me-1 text-primary"></i>Matériel &amp; Réseau</span>
+                                    <span class="badge bg-body text-body border font-monospace" id="fiche-ip">127.0.0.1</span>
+                                </div>
+                                <div class="mb-1"><span class="text-body-secondary small">Marque / Modèle :</span> <strong class="text-body small" id="fiche-modele">DELL</strong></div>
+                                <div class="mb-1"><span class="text-body-secondary small">Code Inventaire :</span> <span class="badge bg-primary-subtle text-primary font-monospace" id="fiche-inventaire">GTA-GS-TTT</span></div>
+                                <div class="mb-1"><span class="text-body-secondary small">N° Série (S/N) :</span> <span class="font-monospace text-body small" id="fiche-sn">N/C</span></div>
+                                <div><span class="text-body-secondary small">Emplacement :</span> <span class="text-body small" id="fiche-lieu">Non localisé</span></div>
+                            </div>
+                        </div>
+
+                        {# 2. Bénéficiaire & Session Windows #}
+                        <div class="col-12 col-md-4">
+                            <div class="card h-100 border p-3 bg-body-tertiary">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="small fw-bold text-uppercase text-body-secondary"><i class="bi bi-person-badge me-1 text-success"></i>Bénéficiaire Actif</span>
+                                    <span class="badge bg-success-subtle text-success border" id="fiche-att-statut">En cours</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.8rem;" id="fiche-avatar">
+                                        JD
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-body" id="fiche-beneficiaire">Jean DUPONT</div>
+                                        <div class="text-body-secondary small" id="fiche-service">Comptabilité</div>
+                                    </div>
+                                </div>
+                                <div class="p-2 rounded bg-body border mt-1">
+                                    <div class="small text-body-secondary" style="font-size: 0.7rem;">Session Windows cible :</div>
+                                    <div class="fw-bold font-monospace text-success d-flex align-items-center gap-1">
+                                        <i class="bi bi-person-circle"></i>
+                                        <span id="fiche-session">jean.dupont</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {# 3. Sécurité & Protection #}
+                        <div class="col-12 col-md-4">
+                            <div class="card h-100 border p-3 bg-body-tertiary">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="small fw-bold text-uppercase text-body-secondary"><i class="bi bi-shield-check me-1 text-warning"></i>Sécurité Globale</span>
+                                    <span class="badge" id="fiche-securite-badge">Sécurisé</span>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="small text-body-secondary" style="font-size: 0.7rem;">Dernier Point Système :</div>
+                                    <div class="fw-semibold small text-body" id="fiche-dernier-point-date">Aucun point</div>
+                                </div>
+                                <div>
+                                    <div class="small text-body-secondary" style="font-size: 0.7rem;">Dernière Sauvegarde Fichiers :</div>
+                                    <div class="fw-semibold small text-body" id="fiche-derniere-sauv-date">Jamais sauvegardé</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Emplacement Physique & Dossiers Inclus #}
+                    <div class="card border p-3 mb-3 bg-body-tertiary">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small fw-bold text-uppercase text-body-secondary">
+                                <i class="bi bi-folder2-open text-primary me-1"></i>Arborescence Hiérarchique de Sauvegarde (Bénéficiaire / Matériel / Session)
+                            </span>
+                            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.72rem;" onclick="window.copierCheminFiche(this)">
+                                <i class="bi bi-clipboard me-1"></i><span class="copy-lbl">Copier le chemin</span>
+                            </button>
+                        </div>
+                        <div class="p-2 rounded bg-body border font-monospace text-primary fw-bold small text-break mb-2" id="fiche-chemin-sauvegarde">
+                            C:\GPARC_Sauvegardes\Jean_DUPONT\GTA-GS-TTT\jean.dupont\
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <span class="badge bg-body text-body border py-1 px-2"><i class="bi bi-file-earmark-text text-primary me-1"></i>Documents</span>
+                            <span class="badge bg-body text-body border py-1 px-2"><i class="bi bi-laptop text-info me-1"></i>Bureau</span>
+                            <span class="badge bg-body text-body border py-1 px-2"><i class="bi bi-music-note-beamed text-success me-1"></i>Musique</span>
+                            <span class="badge bg-body text-body border py-1 px-2"><i class="bi bi-film text-danger me-1"></i>Vidéos</span>
+                            <span class="badge bg-body text-body border py-1 px-2"><i class="bi bi-image text-warning me-1"></i>Images</span>
+                            <span class="badge bg-body text-body border py-1 px-2"><i class="bi bi-download text-secondary me-1"></i>Téléchargements</span>
+                        </div>
+                    </div>
+
+                    {# Historique spécifique au poste #}
+                    <div class="card border">
+                        <div class="card-header bg-body-tertiary py-2 px-3 d-flex justify-content-between align-items-center">
+                            <span class="small fw-bold text-body"><i class="bi bi-clock-history me-1 text-secondary"></i>Historique des interventions sur ce poste</span>
+                            <span class="badge bg-secondary-subtle text-body border" id="fiche-nb-historique">0 opération(s)</span>
+                        </div>
+                        <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
+                            <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.78rem;">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Date &amp; Heure</th>
+                                        <th>Opération</th>
+                                        <th>Statut</th>
+                                        <th>Détails &amp; Fichiers</th>
+                                        <th>Admin</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="fiche-historique-tbody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-body-tertiary py-2 d-flex justify-content-between">
+                <div>
+                    <a href="#" id="fiche-btn-equipement-show" class="btn btn-outline-secondary btn-sm" target="_blank">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Fiche matériel complète (G-PARC)
+                    </a>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="fiche-btn-lancer-point">
+                        <i class="bi bi-lightning-charge-fill me-1"></i>Point Restauration
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-sm" id="fiche-btn-lancer-profil">
+                        <i class="bi bi-cloud-arrow-up-fill me-1"></i>Sauvegarder Profil
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Modale d'Autorisation Administrative Explicite & Déclenchement Sécurisé par Token #}
+<div class="modal fade" id="modalAutorisationBackup" tabindex="-1" aria-labelledby="modalAutorisationLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white py-3">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-lock-fill text-warning fs-5"></i>
+                    <h5 class="modal-title fw-bold mb-0" id="modalAutorisationLabel">Autorisation Administrative Requise</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="window.fermerModalAutorisation()" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body p-4">
+                {# Section 1 : Demande claire à l'administrateur avec saisie du Code PIN #}
+                <div id="auth-form-section">
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small text-body-secondary text-uppercase fw-bold mb-1">Bénéficiaire / Collaborateur :</label>
+                            <div class="fw-bold fs-6 text-primary text-truncate" id="auth-modal-beneficiaire-name">Non attribué</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small text-body-secondary text-uppercase fw-bold mb-1">Code Inventaire :</label>
+                            <div class="fw-bold fs-6 font-monospace text-body" id="auth-modal-code-inventaire">GTA-MAT-0001</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small text-body-secondary text-uppercase fw-bold mb-1">Machine cible :</label>
+                            <div class="fw-bold fs-6 text-body" id="auth-modal-machine-name">PC-COMPTA-01</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small text-body-secondary text-uppercase fw-bold mb-1">Session Windows cible :</label>
+                            <div class="fw-bold fs-6 font-monospace text-success d-flex align-items-center gap-1">
+                                <i class="bi bi-person-circle"></i>
+                                <span id="auth-modal-session-name">jean.dupont</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Prévisualisation du chemin de sauvegarde hiérarchique #}
+                    <div id="auth-dest-preview-box" class="p-2 mb-3 rounded bg-body-secondary border small">
+                        <div class="text-body-secondary fw-semibold mb-1" style="font-size: 0.72rem;">
+                            <i class="bi bi-folder2-open text-primary me-1"></i>Destination hiérarchique (Bénéficiaire / Matériel / Session) :
+                        </div>
+                        <div class="font-monospace text-primary fw-bold text-break" style="font-size: 0.76rem;" id="auth-modal-dest-path">
+                            C:\GPARC_Sauvegardes\Jean_DUPONT\GTA-GS-TTT\jean.dupont\
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-body-secondary text-uppercase fw-bold mb-1">Action à déclencher :</label>
+                        <div class="p-2 rounded bg-body-secondary border fw-semibold text-primary" id="auth-modal-action-label">
+                            Point de Restauration Windows
+                        </div>
+                    </div>
+
+                    {# Étape 1 : Diagnostic & Test de joignabilité de la machine cible (Ping réseau) #}
+                    <div id="auth-ping-box" class="p-3 mb-3 rounded-3 border bg-light">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="small fw-bold text-uppercase text-muted d-flex align-items-center gap-1">
+                                <i class="bi bi-activity text-primary"></i>
+                                <span>Étape 1 : Test de réactivité du PC cible (Ping réseau)</span>
+                            </span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size: 0.75rem;" id="btn-retester-ping" onclick="window.lancerTestPingModal()">
+                                <i class="bi bi-arrow-clockwise"></i> Re-tester
+                            </button>
+                        </div>
+                        <div id="auth-ping-content" class="mt-2">
+                            <div class="d-flex align-items-center gap-2 small text-muted">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                <span>Envoi d'un Ping et vérification de la réactivité de la machine cible en cours...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Étape 2 : Confirmation d'autorisation avec Code PIN Administrateur #}
+                    <div class="mb-2">
+                        <label for="auth-admin-pin" class="form-label small fw-bold text-dark d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-key-fill text-warning me-1"></i>Étape 2 : Votre Code PIN Administrateur (4 chiffres)</span>
+                            <span class="text-muted fw-normal" style="font-size: 0.72rem;">Session DSI</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-shield-lock"></i></span>
+                            <input type="password" 
+                                   id="auth-admin-pin" 
+                                   class="form-control form-control-lg text-center fw-bold font-monospace" 
+                                   placeholder="••••" 
+                                   maxlength="4" 
+                                   inputmode="numeric" 
+                                   pattern="[0-9]*" 
+                                   autocomplete="off"
+                                   disabled
+                                   onkeydown="if(event.key==='Enter'){window.executerActionSecurisee();}">
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="form-text small text-muted">
+                                L'autorisation est vérifiée en direct sur votre session.
+                            </span>
+                            <div class="form-check form-check-inline m-0">
+                                <input class="form-check-input" type="checkbox" id="auth-force-check" onchange="window.toggleForce(this.checked)">
+                                <label class="form-check-label text-muted" style="font-size: 0.72rem;" for="auth-force-check">Forcer si hors-ligne</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Section 2 : Indicateur de progression par étapes en direct #}
+                <div id="auth-steps-section" class="d-none py-2">
+                    <h6 class="fw-bold text-dark mb-3"><i class="bi bi-cpu text-primary me-2"></i>Traitement et liaison en cours...</h6>
+                    
+                    <div class="d-flex align-items-start gap-3 mb-3" id="step1-row">
+                        <div class="rounded-circle p-2 bg-warning-subtle text-warning d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px;" id="step1-icon">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                        </div>
+                        <div>
+                            <div class="fw-semibold small text-dark" id="step1-title">Étape 1 : Vérification de l'autorisation administrateur...</div>
+                            <div class="small text-muted" id="step1-desc">Contrôle du Code PIN et émission du token temporaire à usage unique.</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-start gap-3 mb-3 opacity-50" id="step2-row">
+                        <div class="rounded-circle p-2 bg-light text-muted d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px;" id="step2-icon">
+                            <i class="bi bi-broadcast"></i>
+                        </div>
+                        <div>
+                            <div class="fw-semibold small text-dark" id="step2-title">Étape 2 : Liaison réseau vers le PC cible...</div>
+                            <div class="small text-muted" id="step2-desc">Test de contact et vérification que le poste est bien en ligne.</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-start gap-3 opacity-50" id="step3-row">
+                        <div class="rounded-circle p-2 bg-light text-muted d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px;" id="step3-icon">
+                            <i class="bi bi-hdd-network"></i>
+                        </div>
+                        <div>
+                            <div class="fw-semibold small text-dark" id="step3-title">Étape 3 : Exécution de l'opération système distante...</div>
+                            <div class="small text-muted" id="step3-desc">Création du point de restauration ou synchronisation des maquettes.</div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Message d'erreur ou de succès final #}
+                <div id="auth-result-box" class="alert d-none mt-3"></div>
+            </div>
+            <div class="modal-footer bg-light" id="auth-modal-footer">
+                <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal" onclick="window.fermerModalAutorisation()">Refuser / Annuler</button>
+                <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 shadow-sm" id="btn-confirmer-action" disabled onclick="window.executerActionSecurisee()">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Confirmer l'autorisation &amp; Lancer</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    window.currentFicheData = null;
+
+    window.copierCheminFiche = function(btn) {
+        const text = document.getElementById('fiche-chemin-sauvegarde')?.textContent?.trim() || '';
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(function() {
+            if (btn) {
+                const lbl = btn.querySelector('.copy-lbl');
+                const orig = lbl ? lbl.textContent : '';
+                if (lbl) lbl.textContent = 'Copié !';
+                btn.className = 'btn btn-sm btn-success py-0 px-2';
+                setTimeout(function() {
+                    if (lbl) lbl.textContent = orig;
+                    btn.className = 'btn btn-sm btn-outline-primary py-0 px-2';
+                }, 1500);
+            }
+        });
+    };
+
+    window.ouvrirFichePoste = function(equipementId) {
+        const modalEl = document.getElementById('modalFichePoste');
+        if (!modalEl) return;
+
+        const loading = document.getElementById('fiche-loading');
+        const content = document.getElementById('fiche-content');
+
+        if (loading) {
+            loading.className = 'text-center py-5';
+            loading.innerHTML = '<div class="spinner-border text-primary" role="status"></div><div class="text-body-secondary mt-2 small">Chargement de la fiche de sécurité...</div>';
+            loading.classList.remove('d-none');
+        }
+        if (content) content.classList.add('d-none');
+
+        // Afficher la modale
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        } else {
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+        }
+
+        // Appel AJAX pour charger la fiche via la route Symfony officielle
+        const ficheUrl = "{{ path('app_sauvegarde_poste_fiche', {'id': 999999}) }}".replace('999999', equipementId);
+        fetch(ficheUrl, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(function(res) {
+            if (!res.ok) {
+                return res.text().then(function(t) {
+                    throw new Error('Erreur serveur HTTP ' + res.status);
+                });
+            }
+            return res.json();
+        })
+        .then(function(data) {
+            if (!data.success) throw new Error('Impossible de charger la fiche.');
+            window.currentFicheData = data;
+
+            // En-tête
+            document.getElementById('fiche-nom-machine').textContent = data.nom;
+            document.getElementById('fiche-os-badge').textContent = data.os;
+            const statBadge = document.getElementById('fiche-statut-badge');
+            statBadge.textContent = data.statut;
+            statBadge.className = 'badge border ' + (data.statut === 'En service' ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-body');
+
+            // 1. Matériel & Réseau
+            document.getElementById('fiche-ip').textContent = data.ip;
+            document.getElementById('fiche-modele').textContent = data.marque + ' ' + data.modele;
+            document.getElementById('fiche-inventaire').textContent = data.code_inventaire;
+            document.getElementById('fiche-sn').textContent = data.numero_serie;
+            document.getElementById('fiche-lieu').textContent = data.lieu;
+
+            // 2. Bénéficiaire & Session
+            const benef = data.beneficiaire;
+            document.getElementById('fiche-beneficiaire').textContent = benef.nom;
+            document.getElementById('fiche-service').textContent = benef.service;
+            document.getElementById('fiche-avatar').textContent = (benef.nom || 'NA').substring(0, 2).toUpperCase();
+            document.getElementById('fiche-att-statut').textContent = benef.statut_attribution;
+            document.getElementById('fiche-session').textContent = data.session_windows;
+
+            // 3. Sécurité & Protection
+            const secBadge = document.getElementById('fiche-securite-badge');
+            if (data.dernier_point || data.derniere_sauvegarde) {
+                secBadge.className = 'badge bg-success text-white';
+                secBadge.textContent = 'Sécurisé';
+            } else {
+                secBadge.className = 'badge bg-danger text-white';
+                secBadge.textContent = 'Non protégé';
+            }
+
+            const dpDate = document.getElementById('fiche-dernier-point-date');
+            if (data.dernier_point) {
+                dpDate.innerHTML = '<span class="text-success fw-bold"><i class="bi bi-check-circle me-1"></i>' + data.dernier_point.date + '</span> (' + data.dernier_point.taille + ')';
+            } else {
+                dpDate.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Aucun point créé</span>';
+            }
+
+            const dsDate = document.getElementById('fiche-derniere-sauv-date');
+            if (data.derniere_sauvegarde) {
+                dsDate.innerHTML = '<span class="text-success fw-bold"><i class="bi bi-check-circle me-1"></i>' + data.derniere_sauvegarde.date + '</span> (' + data.derniere_sauvegarde.taille + ')';
+            } else {
+                dsDate.innerHTML = '<span class="text-warning-emphasis"><i class="bi bi-exclamation-triangle me-1"></i>Jamais sauvegardé</span>';
+            }
+
+            // Emplacement physique
+            document.getElementById('fiche-chemin-sauvegarde').textContent = data.chemin_sauvegarde;
+
+            // Historique spécifique au poste
+            const tbody = document.getElementById('fiche-historique-tbody');
+            tbody.innerHTML = '';
+            document.getElementById('fiche-nb-historique').textContent = (data.historique ? data.historique.length : 0) + ' opération(s)';
+
+            if (data.historique && data.historique.length > 0) {
+                data.historique.forEach(function(h) {
+                    const tr = document.createElement('tr');
+                    const opBadge = h.is_point 
+                        ? '<span class="badge bg-primary-subtle text-primary border">⚡ Point Restauration</span>'
+                        : '<span class="badge bg-success-subtle text-success border">💾 Sauvegarde Profil</span>';
+                    tr.innerHTML = '<td class="font-monospace text-muted">' + h.date + '</td>' +
+                        '<td>' + opBadge + '</td>' +
+                        '<td><span class="badge bg-success text-white">Succès</span></td>' +
+                        '<td class="text-muted text-truncate" style="max-width: 280px;" title="' + (h.details || '') + '">' + ((h.details || '').split('\n')[0]) + '</td>' +
+                        '<td><span class="badge bg-light text-dark border">' + (h.lance_par || 'admin') + '</span></td>';
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Aucune intervention enregistrée pour ce poste.</td></tr>';
+            }
+
+            // Liens & Boutons
+            const btnShow = document.getElementById('fiche-btn-equipement-show');
+            if (btnShow) btnShow.href = data.url_fiche_complete;
+
+            // Boutons d'action rapide vers la modale d'autorisation
+            const btnPoint = document.getElementById('fiche-btn-lancer-point');
+            const btnProfil = document.getElementById('fiche-btn-lancer-profil');
+
+            if (btnPoint) {
+                btnPoint.onclick = function() {
+                    bootstrap.Modal.getInstance(modalEl)?.hide();
+                    setTimeout(function() {
+                        window.ouvrirModalAutorisation('POINT_RESTAURATION', data.id, data.nom, data.beneficiaire.nom, data.code_inventaire, data.session_windows, data.chemin_sauvegarde);
+                    }, 350);
+                };
+            }
+
+            if (btnProfil) {
+                btnProfil.onclick = function() {
+                    bootstrap.Modal.getInstance(modalEl)?.hide();
+                    setTimeout(function() {
+                        window.ouvrirModalAutorisation('SAUVEGARDE_PROFIL', data.id, data.nom, data.beneficiaire.nom, data.code_inventaire, data.session_windows, data.chemin_sauvegarde);
+                    }, 350);
+                };
+            }
+
+            if (loading) loading.classList.add('d-none');
+            if (content) content.classList.remove('d-none');
+        })
+        .catch(function(err) {
+            if (loading) loading.innerHTML = '<div class="alert alert-danger p-2 small"><i class="bi bi-exclamation-triangle me-1"></i>Erreur lors du chargement : ' + err.message + '</div>';
+        });
+    };
+
+    window.currentBackupAction = '';
+    window.currentBackupEquipementId = 0;
+    window.currentBackupMachineName = '';
+    window.currentBackupBeneficiaire = '';
+    window.isMachineEnLigne = false;
+    window.isForceEnvoi = false;
+
+    window.toggleForce = function(checked) {
+        window.isForceEnvoi = !!checked;
+        const pinInput = document.getElementById('auth-admin-pin');
+        const btnConfirmer = document.getElementById('btn-confirmer-action');
+
+        if (window.isForceEnvoi) {
+            if (pinInput) pinInput.disabled = false;
+            if (btnConfirmer) btnConfirmer.disabled = false;
+            if (pinInput) pinInput.focus();
+        } else if (!window.isMachineEnLigne) {
+            if (pinInput) pinInput.disabled = true;
+            if (btnConfirmer) btnConfirmer.disabled = true;
+        }
+    };
+
+    window.lancerTestPingModal = function() {
+        const pingBox = document.getElementById('auth-ping-box');
+        const pingContent = document.getElementById('auth-ping-content');
+        const pinInput = document.getElementById('auth-admin-pin');
+        const btnConfirmer = document.getElementById('btn-confirmer-action');
+        const forceCheck = document.getElementById('auth-force-check');
+
+        if (!pingContent || !pingBox) return;
+
+        window.isMachineEnLigne = false;
+        window.isForceEnvoi = false;
+        if (pinInput) {
+            pinInput.disabled = true;
+            pinInput.value = '';
+        }
+        if (btnConfirmer) btnConfirmer.disabled = true;
+        if (forceCheck) forceCheck.checked = false;
+
+        pingBox.className = 'p-3 mb-3 rounded-3 border bg-light';
+        pingContent.innerHTML = '<div class="d-flex align-items-center gap-2 small text-muted">' +
+            '<div class="spinner-border spinner-border-sm text-primary" role="status"></div>' +
+            '<span>Envoi d\'un Ping ICMP et vérification de la réactivité de la machine...</span>' +
+            '</div>';
+
+        fetch("{{ path('app_sauvegarde_poste_verifier') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ equipement_id: window.currentBackupEquipementId })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.en_ligne) {
+                window.isMachineEnLigne = true;
+                pingBox.className = 'p-3 mb-3 rounded-3 border border-success bg-success-subtle text-success';
+                pingContent.innerHTML = '<div class="d-flex align-items-center gap-2 fw-semibold">' +
+                    '<i class="bi bi-check-circle-fill fs-5"></i>' +
+                    '<div>Machine en ligne et réactive (Ping : ' + (data.temps_ms || '< 5ms') + ')</div>' +
+                    '</div>' +
+                    '<div class="small text-muted mt-1">' + (data.details || 'La machine est allumée et prête.') + ' Vous pouvez confirmer l\'autorisation ci-dessous.</div>';
+
+                if (pinInput) {
+                    pinInput.disabled = false;
+                    setTimeout(function() { pinInput.focus(); }, 150);
+                }
+                if (btnConfirmer) btnConfirmer.disabled = false;
+            } else {
+                window.isMachineEnLigne = false;
+                pingBox.className = 'p-3 mb-3 rounded-3 border border-danger bg-danger-subtle text-danger';
+                pingContent.innerHTML = '<div class="d-flex align-items-center gap-2 fw-semibold">' +
+                    '<i class="bi bi-x-circle-fill fs-5"></i>' +
+                    '<div>Machine injoignable (Aucune réponse au Ping)</div>' +
+                    '</div>' +
+                    '<div class="small text-dark mt-1">' + (data.details || 'Le poste semble éteint ou hors du réseau.') + '</div>' +
+                    '<div class="small text-muted mt-1">Impossible de configurer une machine hors-ligne. Allumez le poste cible puis cliquez sur <strong>Re-tester</strong>.</div>';
+
+                if (pinInput) pinInput.disabled = true;
+                if (btnConfirmer) btnConfirmer.disabled = true;
+            }
+        })
+        .catch(function(err) {
+            window.isMachineEnLigne = false;
+            pingBox.className = 'p-3 mb-3 rounded-3 border border-danger bg-danger-subtle text-danger';
+            pingContent.innerHTML = '<div class="d-flex align-items-center gap-2 fw-semibold text-danger">' +
+                '<i class="bi bi-exclamation-triangle-fill fs-5"></i>' +
+                '<div>Erreur lors du test de joignabilité : ' + err.message + '</div>' +
+                '</div>';
+        });
+    };
+
+    window.testerPingLigne = function(equipementId, btn) {
+        if (!btn) return;
+        const origContent = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm text-primary" role="status"></span>';
+        btn.disabled = true;
+
+        fetch("{{ path('app_sauvegarde_poste_verifier') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ equipement_id: equipementId })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            btn.disabled = false;
+            if (data.en_ligne) {
+                btn.className = 'btn btn-outline-success btn-sm py-0 px-1 border-0 fw-semibold';
+                btn.innerHTML = '<span class="badge bg-success-subtle text-success border">🟢 En ligne (' + (data.temps_ms || '<5ms') + ')</span>';
+            } else {
+                btn.className = 'btn btn-outline-danger btn-sm py-0 px-1 border-0 fw-semibold';
+                btn.innerHTML = '<span class="badge bg-danger-subtle text-danger border">🔴 Hors ligne</span>';
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.innerHTML = origContent;
+        });
+    };
+
+    window.preparerModalAutorisation = function(action, equipementId, machineName, beneficiaireName, codeInventaire, sessionSuggeree, previewPath) {
+        window.currentBackupAction = action;
+        window.currentBackupEquipementId = equipementId;
+        window.currentBackupMachineName = machineName;
+        window.currentBackupBeneficiaire = beneficiaireName;
+
+        const formSection = document.getElementById('auth-form-section');
+        const stepsSection = document.getElementById('auth-steps-section');
+        const pinInput = document.getElementById('auth-admin-pin');
+        const btnConfirmer = document.getElementById('btn-confirmer-action');
+        const forceCheck = document.getElementById('auth-force-check');
+        const machineLabel = document.getElementById('auth-modal-machine-name');
+        const beneficiaireLabel = document.getElementById('auth-modal-beneficiaire-name');
+        const codeInventaireLabel = document.getElementById('auth-modal-code-inventaire');
+        const sessionLabel = document.getElementById('auth-modal-session-name');
+        const destPathLabel = document.getElementById('auth-modal-dest-path');
+        const destBox = document.getElementById('auth-dest-preview-box');
+        const actionLabel = document.getElementById('auth-modal-action-label');
+        const resultBox = document.getElementById('auth-result-box');
+        const footer = document.getElementById('auth-modal-footer');
+
+        if (formSection) formSection.classList.remove('d-none');
+        if (stepsSection) stepsSection.classList.add('d-none');
+        if (footer) footer.classList.remove('d-none');
+        if (resultBox) {
+            resultBox.classList.add('d-none');
+            resultBox.innerHTML = '';
+        }
+        if (pinInput) {
+            pinInput.value = '';
+            pinInput.disabled = true;
+        }
+        if (btnConfirmer) btnConfirmer.disabled = true;
+        if (forceCheck) forceCheck.checked = false;
+
+        if (machineLabel) {
+            machineLabel.textContent = machineName || 'Poste du réseau';
+        }
+
+        if (beneficiaireLabel) {
+            beneficiaireLabel.textContent = beneficiaireName || 'Non attribué';
+        }
+
+        if (codeInventaireLabel) {
+            codeInventaireLabel.textContent = codeInventaire || 'GTA-INVENTAIRE';
+        }
+
+        const safeSession = sessionSuggeree || 'default.user';
+        if (sessionLabel) {
+            sessionLabel.textContent = safeSession;
+        }
+
+        if (destPathLabel) {
+            if (previewPath) {
+                destPathLabel.textContent = previewPath;
+            } else {
+                const safeBenef = (beneficiaireName || 'Non_Attribue').replace(/[^a-zA-Z0-9_\-]/g, '_');
+                const safeInv = (codeInventaire || 'GTA-INVENTAIRE').replace(/[^a-zA-Z0-9_\-]/g, '_');
+                destPathLabel.textContent = 'C:\\GPARC_Sauvegardes\\' + safeBenef + '\\' + safeInv + '\\' + safeSession + '\\';
+            }
+        }
+
+        if (destBox) {
+            if (action === 'POINT_RESTAURATION') {
+                destBox.classList.add('d-none');
+            } else {
+                destBox.classList.remove('d-none');
+            }
+        }
+
+        if (actionLabel) {
+            if (action === 'POINT_RESTAURATION') {
+                actionLabel.textContent = '⚡ Créer un Point de Restauration Système Windows (Checkpoint-Computer)';
+                actionLabel.className = 'p-2 rounded bg-body-secondary border fw-semibold text-primary';
+            } else if (action === 'SAUVEGARDE_PROFIL') {
+                actionLabel.textContent = '💾 Sauvegarde Incrémentielle Complète (Documents, Bureau, Musique, Vidéos, Images, Téléchargements)';
+                actionLabel.className = 'p-2 rounded bg-body-secondary border fw-semibold text-success';
+            } else {
+                actionLabel.textContent = '⚡ Campagne Globale de Points de Restauration sur TOUS les PC du domaine';
+                actionLabel.className = 'p-2 rounded bg-body-secondary border fw-semibold text-warning';
+            }
+        }
+
+        // Lancer immédiatement le test de Ping en Étape 1 préalable !
+        window.lancerTestPingModal();
+    };
+
+    window.ouvrirModalAutorisation = function(action, equipementId, machineName, beneficiaireName, codeInventaire, sessionSuggeree, previewPath) {
+        window.preparerModalAutorisation(action, equipementId, machineName, beneficiaireName, codeInventaire, sessionSuggeree, previewPath);
+
+        const modalEl = document.getElementById('modalAutorisationBackup');
+        if (!modalEl) {
+            alert('Modale introuvable dans le DOM.');
+            return;
+        }
+
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            try {
+                const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                bsModal.show();
+                return;
+            } catch(e) {
+                console.warn('Bootstrap Modal instance error, activation du fallback direct :', e);
+            }
+        }
+
+        modalEl.classList.add('show');
+        modalEl.style.display = 'block';
+        modalEl.removeAttribute('aria-hidden');
+        modalEl.setAttribute('aria-modal', 'true');
+        document.body.classList.add('modal-open');
+
+        let backdrop = document.getElementById('modal-backup-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'modal-backup-backdrop';
+            backdrop.className = 'modal-backdrop fade show';
+            backdrop.onclick = window.fermerModalAutorisation;
+            document.body.appendChild(backdrop);
+        }
+    };
+
+    window.fermerModalAutorisation = function() {
+        const modalEl = document.getElementById('modalAutorisationBackup');
+        if (modalEl) {
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                try {
+                    const bsModal = bootstrap.Modal.getInstance(modalEl);
+                    if (bsModal) bsModal.hide();
+                } catch(e) {}
+            }
+            modalEl.classList.remove('show');
+            modalEl.style.display = 'none';
+            modalEl.setAttribute('aria-hidden', 'true');
+            modalEl.removeAttribute('aria-modal');
+        }
+        document.body.classList.remove('modal-open');
+        const backdrop = document.getElementById('modal-backup-backdrop');
+        if (backdrop) backdrop.remove();
+        document.querySelectorAll('.modal-backdrop').forEach(function(el) {
+            el.remove();
+        });
+    };
+
+    window.executerActionSecurisee = function() {
+        const action = window.currentBackupAction;
+        const equipementId = window.currentBackupEquipementId;
+        const pinInput = document.getElementById('auth-admin-pin');
+        const pinValue = pinInput ? pinInput.value.trim() : '';
+        const isForced = !!window.isForceEnvoi;
+
+        const formSection = document.getElementById('auth-form-section');
+        const stepsSection = document.getElementById('auth-steps-section');
+        const resultBox = document.getElementById('auth-result-box');
+        const footer = document.getElementById('auth-modal-footer');
+
+        if (!pinValue) {
+            if (resultBox) {
+                resultBox.className = 'alert alert-warning d-flex align-items-center gap-2 mt-3';
+                resultBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill fs-5"></i><div>Veuillez saisir votre Code PIN Administrateur pour signer l\'autorisation.</div>';
+                resultBox.classList.remove('d-none');
+            }
+            if (pinInput) pinInput.focus();
+            return;
+        }
+
+        // Basculement vers l'affichage des étapes
+        if (formSection) formSection.classList.add('d-none');
+        if (stepsSection) stepsSection.classList.remove('d-none');
+        if (footer) footer.classList.add('d-none');
+        if (resultBox) resultBox.classList.add('d-none');
+
+        // Réinitialiser les indicateurs d'étapes
+        const s1Icon = document.getElementById('step1-icon');
+        const s1Title = document.getElementById('step1-title');
+        const s1Desc = document.getElementById('step1-desc');
+        const s2Row = document.getElementById('step2-row');
+        const s2Icon = document.getElementById('step2-icon');
+        const s2Title = document.getElementById('step2-title');
+        const s2Desc = document.getElementById('step2-desc');
+        const s3Row = document.getElementById('step3-row');
+        const s3Icon = document.getElementById('step3-icon');
+
+        if (s1Icon) s1Icon.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        if (s1Title) s1Title.textContent = 'Étape 1 : Vérification de l\'autorisation administrateur...';
+
+        // Étape 1 : Demande et validation du token d'autorisation avec le Code PIN
+        fetch("{{ path('app_sauvegarde_poste_token') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ action: action, pin: pinValue })
+        })
+        .then(function(res) {
+            return res.json().then(function(data) {
+                if (!res.ok || !data.success) {
+                    throw new Error(data.message || 'Autorisation refusée.');
+                }
+                return data;
+            });
+        })
+        .then(function(tokenData) {
+            const token = tokenData.token;
+
+            // Étape 1 Validée !
+            if (s1Icon) {
+                s1Icon.className = 'rounded-circle p-2 bg-success-subtle text-success d-flex align-items-center justify-content-center flex-shrink-0';
+                s1Icon.innerHTML = '<i class="bi bi-check-lg fw-bold"></i>';
+            }
+            if (s1Title) s1Title.innerHTML = '<strong>Étape 1 : Autorisation accordée</strong> (' + (tokenData.admin || 'Admin') + ')';
+            if (s1Desc) s1Desc.textContent = 'Token de session à usage unique généré avec succès.';
+
+            // Étape 2 Activée : Contact réseau du PC
+            if (s2Row) s2Row.classList.remove('opacity-50');
+            if (s2Icon) {
+                s2Icon.className = 'rounded-circle p-2 bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0';
+                s2Icon.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+            }
+            if (s2Title) s2Title.textContent = 'Étape 2 : Contact et liaison réseau avec la machine cible...';
+
+            let targetUrl = '';
+            let bodyPayload = {};
+
+            if (action === 'POINT_RESTAURATION') {
+                targetUrl = "{{ path('app_sauvegarde_poste_point') }}";
+                bodyPayload = { equipement_id: equipementId, token: token, force: isForced };
+            } else if (action === 'SAUVEGARDE_PROFIL') {
+                targetUrl = "{{ path('app_sauvegarde_poste_profil') }}";
+                bodyPayload = { equipement_id: equipementId, token: token, force: isForced };
+            } else {
+                targetUrl = "{{ path('app_sauvegarde_poste_campagne') }}";
+                bodyPayload = { token: token };
+            }
+
+            // Exécution vers la machine distante SEULEMENT après confirmation de l'autorisation
+            return fetch(targetUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify(bodyPayload)
+            });
+        })
+        .then(function(res) {
+            return res.json().then(function(data) {
+                if (!res.ok || !data.success) {
+                    throw new Error(data.message || 'Échec lors de l\'exécution réseau.');
+                }
+                return data;
+            });
+        })
+        .then(function(resultData) {
+            // Étape 2 Validée : PC Cible atteint !
+            if (s2Icon) {
+                s2Icon.className = 'rounded-circle p-2 bg-success-subtle text-success d-flex align-items-center justify-content-center flex-shrink-0';
+                s2Icon.innerHTML = '<i class="bi bi-check-lg fw-bold"></i>';
+            }
+            if (s2Title) s2Title.innerHTML = '<strong>Étape 2 : Machine cible atteinte sur le réseau</strong>';
+            if (s2Desc) s2Desc.textContent = resultData.details_reseau || 'PC en ligne et réactif.';
+
+            // Étape 3 Validée : Opération confirmée
+            if (s3Row) s3Row.classList.remove('opacity-50');
+            if (s3Icon) {
+                s3Icon.className = 'rounded-circle p-2 bg-success-subtle text-success d-flex align-items-center justify-content-center flex-shrink-0';
+                s3Icon.innerHTML = '<i class="bi bi-check-all fs-5 fw-bold"></i>';
+            }
+            const s3Title = document.getElementById('step3-title');
+            const s3Desc = document.getElementById('step3-desc');
+            if (s3Title) s3Title.innerHTML = '<strong>Étape 3 : Opération exécutée et enregistrée</strong>';
+            if (s3Desc) s3Desc.textContent = 'Sauvegarde validée dans le journal G-PARC.';
+
+            // Résultat de succès final
+            if (resultBox) {
+                resultBox.classList.remove('d-none');
+                resultBox.className = 'alert alert-success d-flex align-items-center gap-2 mt-3';
+                resultBox.innerHTML = '<i class="bi bi-check-circle-fill fs-4 flex-shrink-0"></i><div>' + resultData.message + '</div>';
+                setTimeout(function() {
+                    window.location.reload();
+                }, 2200);
+            }
+        })
+        .catch(function(err) {
+            // En cas d'erreur (ex: code PIN faux ou machine injoignable)
+            if (formSection) formSection.classList.remove('d-none');
+            if (stepsSection) stepsSection.classList.add('d-none');
+            if (footer) footer.classList.remove('d-none');
+
+            if (resultBox) {
+                resultBox.classList.remove('d-none');
+                resultBox.className = 'alert alert-danger d-flex align-items-center gap-2 mt-3';
+                resultBox.innerHTML = '<i class="bi bi-x-circle-fill fs-5 flex-shrink-0"></i><div>' + err.message + '</div>';
+            }
+
+            if (pinInput) {
+                pinInput.value = '';
+                pinInput.focus();
+            }
+        });
+    };
+
+    // Synchronisation Bootstrap data-bs-toggle
+    function initModalDelegation() {
+        const modalEl = document.getElementById('modalAutorisationBackup');
+        if (!modalEl) return;
+        modalEl.addEventListener('show.bs.modal', function(event) {
+            const btn = event.relatedTarget;
+            if (btn && btn.getAttribute('data-action')) {
+                window.preparerModalAutorisation(
+                    btn.getAttribute('data-action'),
+                    parseInt(btn.getAttribute('data-equipement-id') || '0', 10),
+                    btn.getAttribute('data-machine-name') || '',
+                    btn.getAttribute('data-beneficiaire') || '',
+                    btn.getAttribute('data-code-inventaire') || '',
+                    btn.getAttribute('data-session') || '',
+                    btn.getAttribute('data-preview-path') || ''
+                );
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initModalDelegation);
+    } else {
+        initModalDelegation();
+    }
+    document.addEventListener('turbo:load', initModalDelegation);
+})();
+</script>
+{% endblock %}
+

@@ -1,0 +1,56 @@
+<?php
+
+namespace App\Entity;
+
+use App\Repository\LieuRepository;
+use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\Mapping as ORM;
+
+#[ORM\Entity(repositoryClass: LieuRepository::class)]
+class Lieu
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column]
+    private ?int $id = null;
+
+    #[ORM\Column(length: 100)]
+    private ?string $nom_lieu = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $description = null;
+
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getNomLieu(): ?string
+    {
+        return $this->nom_lieu;
+    }
+
+    public function setNomLieu(string $nom_lieu): static
+    {
+        $this->nom_lieu = $nom_lieu;
+
+        return $this;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(?string $description): static
+    {
+        $this->description = $description;
+
+        return $this;
+    }
+
+    public function __toString(): string
+    {
+        return $this->nom_lieu ?? '';
+    }
+}

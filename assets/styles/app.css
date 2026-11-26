@@ -1,0 +1,2691 @@
+:root {
+    --gta-orange: #E47000;
+    --gta-orange-hover: #CC6400;
+    --gta-orange-light: #FFF7ED;
+    --gta-orange-border: #FED7AA;
+    
+    /* Strict Black & White - ZERO BLUE */
+    --gta-black: #121212;
+    --gta-dark: #1E1E1E;
+    --gta-sidebar-bg: #121212;
+    --gta-sidebar-hover: #242424;
+    --gta-white: #FFFFFF;
+    --gta-gray-bg: #F5F5F5;
+    --gta-border: #E5E5E5;
+
+    /* Override Bootstrap primary */
+    --bs-primary: #E47000;
+    --bs-primary-rgb: 228, 112, 0;
+}
+
+/* ==========================================================
+   1. GLOBAL VIEWPORT & ABSOLUTE CONTAINER ARCHITECTURE
+   Nothing scrolls with anything else; each pane scrolls independently!
+   ========================================================== */
+html {
+    height: 100vh;
+    max-height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Zero window bouncing/scrolling */
+    background-color: var(--gta-gray-bg);
+    color: var(--gta-black);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Body : Bootstrap Modal a besoin de gérer overflow lui-même (.modal-open).
+   On retire le !important pour que Bootstrap puisse écrire body.style.overflow. */
+body {
+    height: 100vh;
+    max-height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: var(--gta-gray-bg);
+    color: var(--gta-black);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.app-wrapper {
+    display: flex;
+    height: 100vh;
+    max-height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    position: relative;
+}
+
+/* ==========================================================
+   SIDEBAR GTA - COMBINAISON OPTION 4 (SEGMENTÉE) & OPTION 3 (DARK & ORANGE GLOW)
+   ========================================================== */
+.app-sidebar {
+    width: 260px;
+    height: 100vh;
+    background-color: #111317;
+    color: #ffffff;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    z-index: 1030;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    position: relative;
+}
+
+.app-sidebar .sidebar-brand {
+    height: 64px;
+    padding: 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 2px solid var(--gta-orange);
+    text-decoration: none;
+    background-color: #090a0c;
+    box-shadow: 0 4px 15px rgba(228, 112, 0, 0.15);
+    flex-shrink: 0;
+    transition: background-color 0.2s ease;
+}
+
+.app-sidebar .sidebar-brand:hover {
+    background-color: #0e1014;
+}
+
+.sidebar-brand-logo {
+    max-height: 38px;
+    width: auto;
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 3px 6px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s ease;
+}
+
+.app-sidebar .sidebar-brand:hover .sidebar-brand-logo {
+    transform: scale(1.03);
+}
+
+.sidebar-brand-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.15;
+}
+
+.sidebar-brand-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: #ffffff;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.sidebar-brand-title span {
+    color: var(--gta-orange);
+}
+
+.sidebar-brand-subtitle {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1;
+}
+
+/* User Account Profile Box (Segmented Card) */
+.sidebar-user-card {
+    background: #181b21;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.sidebar-user-card:hover {
+    border-color: rgba(228, 112, 0, 0.3);
+    background: #1c2027;
+}
+
+/* Indicateur de statut en ligne pulsant (Live Dot) */
+.sidebar-status-dot {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #10b981;
+    border: 2px solid #181b21;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+    animation: livePulse 2s infinite ease-in-out;
+}
+
+@keyframes livePulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.live-dot {
+    display: inline-block;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.7);
+    animation: livePulse 2s infinite ease-in-out;
+}
+
+/* Zone de défilement de la navigation */
+.sidebar-nav {
+    padding: 0.75rem 0.65rem;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Segmented Blocks / Cards (Option 4) */
+.sidebar-block {
+    background: #16181d;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 0.75rem;
+    padding: 0.4rem 0.35rem 0.45rem 0.35rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sidebar-block:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-section-title {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #828c9b;
+    font-weight: 700;
+    padding: 0.3rem 0.55rem 0.25rem 0.55rem;
+}
+
+/* Nav Links - Option 3 Dark & Orange Glow */
+.sidebar-nav .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.48rem 0.65rem;
+    color: #c0c6cf;
+    background: transparent;
+    border-left: 2px solid transparent;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    font-size: 0.86rem;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none !important;
+    margin-bottom: 0.15rem;
+}
+
+.sidebar-nav .nav-link i {
+    font-size: 1.05rem;
+    width: 20px;
+    text-align: center;
+    display: inline-block;
+    transition: transform 0.18s ease, filter 0.18s ease, color 0.18s ease;
+}
+
+/* Au survol : lueur orange subtile */
+.sidebar-nav .nav-link:hover,
+.sidebar-nav .nav-link:focus {
+    color: #ff9d3b !important;
+    background: rgba(228, 112, 0, 0.09) !important;
+    border-left-color: rgba(228, 112, 0, 0.6) !important;
+    text-decoration: none !important;
+}
+
+.sidebar-nav .nav-link:hover i,
+.sidebar-nav .nav-link:focus i {
+    color: #ff9d3b !important;
+    filter: drop-shadow(0 0 6px rgba(228, 112, 0, 0.7));
+    transform: translateX(1px);
+}
+
+/* Menu Actif : Orange Glow éclatant & badge accentué */
+.sidebar-nav .nav-link.active {
+    color: #ffffff !important;
+    background: linear-gradient(90deg, rgba(228, 112, 0, 0.24) 0%, rgba(228, 112, 0, 0.05) 100%) !important;
+    border-left: 3px solid var(--gta-orange) !important;
+    font-weight: 600;
+    box-shadow: 0 0 14px rgba(228, 112, 0, 0.18);
+    text-decoration: none !important;
+}
+
+.sidebar-nav .nav-link.active i {
+    color: var(--gta-orange) !important;
+    filter: drop-shadow(0 0 8px rgba(228, 112, 0, 0.95));
+}
+
+/* Accordéon / Sous-menus */
+.chevron-icon {
+    transition: transform 0.22s ease;
+}
+
+[aria-expanded="true"] .chevron-icon {
+    transform: rotate(180deg);
+}
+
+.sidebar-nav .collapse .nav-link {
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+    padding-left: 0.65rem;
+    font-size: 0.8rem;
+    color: #9aa2ae;
+    background: transparent !important;
+    border-left: 2px solid transparent;
+}
+
+.sidebar-nav .collapse .nav-link:hover {
+    color: #ff9d3b !important;
+    background: rgba(228, 112, 0, 0.08) !important;
+    border-left-color: rgba(228, 112, 0, 0.5) !important;
+}
+
+.sidebar-nav .collapse .nav-link.active {
+    color: #ffffff !important;
+    background: rgba(228, 112, 0, 0.18) !important;
+    border-left: 2px solid var(--gta-orange) !important;
+    font-weight: 600;
+}
+
+.sidebar-nav .collapse .nav-link.active i {
+    color: var(--gta-orange) !important;
+    filter: drop-shadow(0 0 6px rgba(228, 112, 0, 0.9));
+}
+
+/* Badge de raccourci clavier dans la sidebar */
+.sidebar-kbd {
+    font-size: 0.62rem;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.07);
+    color: #828c9b;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-family: inherit;
+    line-height: 1.2;
+    transition: all 0.15s ease;
+}
+
+.sidebar-nav .nav-link:hover .sidebar-kbd {
+    color: #ff9d3b;
+    border-color: rgba(228, 112, 0, 0.4);
+    background: rgba(228, 112, 0, 0.14);
+}
+
+.sidebar-nav .nav-link.active .sidebar-kbd {
+    color: #ffffff;
+    border-color: rgba(228, 112, 0, 0.6);
+    background: var(--gta-orange);
+    box-shadow: 0 0 6px rgba(228, 112, 0, 0.6);
+}
+
+/* Sidebar Footer (Segmented Card) */
+.sidebar-footer {
+    padding: 0.75rem 0.65rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    background-color: #0b0c0e;
+    flex-shrink: 0;
+}
+
+.sidebar-ip-card {
+    background: #15171c;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-logout-btn {
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    color: #d1d5db !important;
+    transition: all 0.2s ease !important;
+}
+
+.sidebar-logout-btn:hover {
+    background-color: #dc2626 !important;
+    border-color: #dc2626 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4) !important;
+}
+
+/* Main Workspace - 100vh, topbar pinned, content area scrollable */
+.app-main {
+    flex: 1;
+    height: 100vh;
+    max-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background-color: #f5f5f5;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Top Navbar - Fixed at top of main workspace */
+.app-topbar {
+    height: 64px;
+    flex-shrink: 0;
+    background-color: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid #e5e5e5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    z-index: 1020;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* Page Content Area */
+.app-content {
+    padding: 1.5rem;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+/* Filigrane GTA Assurances officiel en arrière-plan - Subtil et discret */
+.gta-watermark-bg {
+    position: fixed;
+    top: 50%;
+    left: calc(50% + 130px);
+    transform: translate(-50%, -50%);
+    width: min(650px, 80vw);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.06;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.gta-watermark-img {
+    width: 100%;
+    max-width: 650px;
+    height: auto;
+    object-fit: contain;
+}
+
+@media (max-width: 991.98px) {
+    .gta-watermark-bg {
+        left: 50%;
+        width: 88vw;
+    }
+}
+
+/* ==========================================================
+   2. INDEPENDENT SCROLLING PANES & SLIM SCROLLBARS
+   Nothing depends on the other: lists scroll independently!
+   ========================================================== */
+/* Custom slim GTA Scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.03);
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(18, 18, 18, 0.2);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--gta-orange);
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: var(--gta-orange);
+}
+
+/* Independent scrollable containers */
+.scroll-pane-left {
+    max-height: calc(100vh - 280px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.scroll-pane-right {
+    max-height: calc(100vh - 280px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.scroll-table-container {
+    max-height: calc(100vh - 290px);
+    overflow-y: auto;
+    overflow-x: auto;
+    position: relative;
+}
+
+.scroll-table-container thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 5;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* ==========================================================
+   3. GORGEOUS GTA FORMS & INPUTS STYLING
+   ========================================================== */
+.card-form {
+    border: 1px solid #e5e5e5;
+    border-top: 4px solid var(--gta-orange) !important;
+    border-radius: 1rem;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06);
+    background-color: #ffffff;
+}
+
+.form-header-badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 0.65rem;
+    background: var(--gta-orange-light);
+    color: var(--gta-orange);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    margin-right: 0.75rem;
+}
+
+.form-section-title {
+    font-size: 0.825rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gta-orange);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.15rem;
+    padding-bottom: 0.45rem;
+    border-bottom: 1.5px solid #f0f0f0;
+}
+
+.form-section-title i {
+    font-size: 1rem;
+}
+
+.form-label {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #1f2937;
+    margin-bottom: 0.45rem;
+    display: inline-block;
+}
+
+/* Universal field styling for all form controls */
+form input[type="text"],
+form input[type="password"],
+form input[type="date"],
+form input[type="datetime-local"],
+form input[type="number"],
+form input[type="email"],
+form input[type="tel"],
+form select,
+form textarea,
+.form-control,
+.form-select {
+    display: block;
+    width: 100%;
+    padding: 0.68rem 0.95rem;
+    font-size: 0.935rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--bs-body-color, #111827);
+    background-color: var(--bs-body-bg, #ffffff);
+    background-clip: padding-box;
+    border: 1.5px solid #d1d5db;
+    border-radius: 0.7rem;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+form input:not([type="checkbox"]):not([type="radio"]):hover,
+form select:hover,
+form textarea:hover,
+.form-control:hover,
+.form-select:hover {
+    border-color: #9ca3af;
+}
+
+form input:not([type="checkbox"]):not([type="radio"]):focus,
+form select:focus,
+form textarea:focus,
+.form-control:focus,
+.form-select:focus {
+    color: var(--bs-body-color, #111827);
+    background-color: var(--bs-body-bg, #ffffff);
+    border-color: var(--gta-orange);
+    outline: 0;
+    box-shadow: 0 0 0 4px rgba(228, 112, 0, 0.22);
+}
+
+/* Styles dédiés cases à cocher & radios GTA */
+.form-check-input {
+    cursor: pointer;
+    border-color: #94a3b8;
+    transition: background-color 0.1s ease-in-out, border-color 0.1s ease-in-out;
+}
+.form-check-label {
+    cursor: pointer;
+    user-select: none;
+}
+.form-check-input:checked {
+    background-color: var(--gta-orange) !important;
+    border-color: var(--gta-orange) !important;
+}
+.form-check-input:focus {
+    border-color: var(--gta-orange) !important;
+    box-shadow: 0 0 0 3px rgba(228, 112, 0, 0.25) !important;
+}
+
+[data-bs-theme="dark"] .form-check-input {
+    background-color: #1b1f2a;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+[data-bs-theme="dark"] .form-check-input:checked {
+    background-color: var(--gta-orange) !important;
+    border-color: var(--gta-orange) !important;
+}
+
+/* Select dropdown icon GTA style */
+form select,
+.form-select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.85rem center !important;
+    background-size: 16px 12px !important;
+    padding-right: 2.5rem !important;
+}
+
+form textarea,
+textarea.form-control {
+    min-height: 95px;
+    resize: vertical;
+}
+
+/* Required asterisk on labels */
+.required:after, label.required:after {
+    content: " *";
+    color: #dc2626;
+    font-weight: 700;
+}
+
+/* Boutons d'action */
+.btn-primary {
+    background-color: var(--gta-orange) !important;
+    border-color: var(--gta-orange) !important;
+    color: #ffffff !important;
+    font-weight: 600;
+    padding: 0.6rem 1.25rem;
+    border-radius: 0.65rem;
+    box-shadow: 0 4px 12px rgba(228, 112, 0, 0.25);
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background-color: var(--gta-orange-hover) !important;
+    border-color: var(--gta-orange-hover) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(228, 112, 0, 0.35);
+}
+
+.btn-outline-primary {
+    color: var(--gta-orange) !important;
+    border-color: var(--gta-orange) !important;
+    font-weight: 500;
+    border-radius: 0.65rem;
+}
+
+.btn-outline-primary:hover, .btn-outline-primary:active {
+    background-color: var(--gta-orange) !important;
+    border-color: var(--gta-orange) !important;
+    color: #ffffff !important;
+}
+
+/* ==========================================================
+   4. MODAL DE CONFIRMATION DE SUPPRESSION DESIGN GTA
+   ========================================================== */
+
+/* ── Fix global Bootstrap Modal : garantir que les modals sont toujours
+      visibles malgré le layout "overflow:hidden" du shell de l'app ──
+   Bootstrap place les modals directement dans <body> via JS.
+   Le backdrop et la fenêtre modale utilisent position:fixed, ils doivent
+   être au-dessus de tous les conteneurs de l'app. */
+.modal-backdrop {
+    z-index: 1055 !important;
+}
+.modal {
+    z-index: 1060 !important;
+}
+.modal-dialog {
+    z-index: 1065 !important;
+}
+.offcanvas-backdrop {
+    z-index: 1055 !important;
+}
+.offcanvas {
+    z-index: 1060 !important;
+}
+
+.modal-delete-content {
+    border: none;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+}
+
+.delete-icon-wrapper {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background-color: #fee2e2;
+    color: #dc2626;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    animation: pulseDanger 2s infinite;
+}
+
+@keyframes pulseDanger {
+    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+    70% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+/* ==========================================================
+   5. CARDS & BADGES (CLEAN SOLID STYLING - ZERO FLOU / ZERO BLANCHIMENT)
+   ========================================================== */
+.card {
+    border: 1px solid var(--gta-border);
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background-color: #ffffff;
+}
+
+.card-header {
+    background-color: #ffffff;
+    border-bottom: 1px solid var(--gta-border);
+    font-weight: 600;
+    padding: 0.85rem 1.25rem;
+    border-radius: 0.75rem 0.75rem 0 0;
+}
+
+/* Bannière sombre du centre de rapport (contraste absolu pour les boutons) */
+.rapport-dark-card {
+    background-color: #1e1e1e !important;
+    background: #1e1e1e !important;
+    color: #ffffff !important;
+    border: 1px solid #2a2a2a !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+}
+
+.rapport-dark-card .btn-outline-light {
+    color: #f3f4f6 !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.rapport-dark-card .btn-outline-light:hover {
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.18) !important;
+}
+
+.stat-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-left: 4px solid var(--gta-orange);
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+}
+
+.ip-pill {
+    font-family: monospace;
+    font-size: 0.8rem;
+    background: #262626;
+    color: #e5e5e5;
+    padding: 0.3rem 0.6rem;
+    border-radius: 0.35rem;
+}
+
+/* Mobile Sidebar Backdrop */
+@media (max-width: 991.98px) {
+    .app-sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: -260px;
+    }
+    .app-sidebar.show {
+        left: 0;
+    }
+    .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        z-index: 1025;
+        display: none;
+    }
+    .sidebar-backdrop.show {
+        display: block;
+    }
+}
+
+/* ==========================================================
+   ALERTE DE SUPPRESSION AVEC IMPACT ("SCANDALE") & CLIGNOTEMENT
+   ========================================================== */
+@keyframes alertBlinkDanger {
+    0%, 100% {
+        background-color: #fff1f0;
+        border-color: #dc3545;
+        box-shadow: 0 0 10px rgba(220, 53, 69, 0.35);
+        color: #842029;
+    }
+    50% {
+        background-color: #ffccd0;
+        border-color: #ff001e;
+        box-shadow: 0 0 25px rgba(255, 0, 30, 0.7);
+        color: #58151c;
+    }
+}
+
+@keyframes btnBlinkDanger {
+    0%, 100% {
+        background-color: #dc3545;
+        box-shadow: 0 0 0 rgba(220, 53, 69, 0);
+    }
+    50% {
+        background-color: #b02a37;
+        box-shadow: 0 0 18px rgba(220, 53, 69, 0.85);
+    }
+}
+
+@keyframes shakeIcon {
+    0%, 100% { transform: rotate(0deg); }
+    20% { transform: rotate(-12deg); }
+    40% { transform: rotate(12deg); }
+    60% { transform: rotate(-8deg); }
+    80% { transform: rotate(8deg); }
+}
+
+.alert-blink-danger {
+    animation: alertBlinkDanger 1.2s infinite ease-in-out;
+    border: 2px solid #dc3545 !important;
+}
+
+.btn-blink-danger {
+    animation: btnBlinkDanger 1.2s infinite ease-in-out;
+}
+
+.animate-shake {
+    display: inline-block;
+    animation: shakeIcon 1.5s infinite ease-in-out;
+}
+
+/* ==========================================================
+   BADGES DE VÉTUSTÉ / VIEILLISSEMENT (3 ANS / 5 ANS)
+   ========================================================== */
+.badge-age-ok {
+    background-color: #e8f5e9;
+    color: #1b5e20;
+    border: 1px solid #c8e6c9;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-age-warning {
+    background-color: #fff8e1;
+    color: #b78103;
+    border: 1px solid #ffe082;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.badge-age-obsolete {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* ==========================================================
+   IMPRESSION RAPPORT / AUDIT PARC GTA
+   ========================================================== */
+@media print {
+    .app-sidebar, .app-header, .btn, .no-print, .dropdown, .sidebar-backdrop {
+        display: none !important;
+    }
+    .app-main, .app-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    body, html {
+        height: auto !important;
+        overflow: visible !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+    .card {
+        border: 1px solid #cccccc !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+    }
+    .print-only {
+        display: block !important;
+    }
+}
+.print-only {
+    display: none;
+}
+
+/* ==========================================================
+   NOUVEAU DASHBOARD BENTO - DESIGN MODERNE GTA ASSURANCES
+   Forme inspirée du mockup avec palette officielle GTA
+   ========================================================== */
+.dash-wrapper {
+    position: relative;
+    z-index: 2;
+}
+
+.dash-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+/* ═══════════════════════════════════════════════
+   DASHBOARD — Command Palette Search
+   ═══════════════════════════════════════════════ */
+
+.dash-search-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+}
+
+.dash-search-pill {
+    background: #ffffff;
+    border-radius: 50px;
+    padding: 0.4rem 1rem 0.4rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.dash-search-pill:focus-within {
+    box-shadow: 0 4px 20px rgba(228, 112, 0, 0.18);
+    border-color: rgba(228, 112, 0, 0.4);
+    border-radius: 16px 16px 0 0;
+}
+
+.dash-search-pill input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 0.88rem;
+    color: #121212;
+    width: 100%;
+    min-width: 0;
+}
+
+.dash-search-pill input::placeholder { color: #9ca3af; }
+
+/* Raccourci "/" */
+.dash-search-shortcut kbd {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    color: #6b7280;
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+/* Panneau flottant */
+.dash-search-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid rgba(228, 112, 0, 0.35);
+    border-top: none;
+    border-radius: 0 0 16px 16px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14);
+    z-index: 1050;
+    max-height: 420px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Séparateur de groupe */
+.dash-search-group-label {
+    padding: 0.45rem 1rem 0.2rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #9ca3af;
+    background: #fafafa;
+    border-bottom: 1px solid #f0f0f0;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* Item de résultat */
+.dash-search-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    text-decoration: none;
+    color: #121212;
+    border-bottom: 1px solid #f5f5f5;
+    transition: background 0.12s ease;
+    cursor: pointer;
+}
+
+.dash-search-item:last-child { border-bottom: none; }
+
+.dash-search-item:hover,
+.dash-search-item.active {
+    background: #fff7f0;
+    color: #121212;
+}
+
+.dash-search-item.active {
+    background: linear-gradient(90deg, rgba(228,112,0,0.08) 0%, rgba(228,112,0,0.03) 100%);
+    border-left: 3px solid var(--gta-orange, #E47000);
+    padding-left: calc(1rem - 3px);
+}
+
+.dash-search-item-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.dash-search-item-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.dash-search-item-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dash-search-item-sub {
+    font-size: 0.75rem;
+    color: #6b7280;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Surlignage du terme recherché */
+.dash-search-mark {
+    background: rgba(228, 112, 0, 0.18);
+    color: #b85500;
+    padding: 0 2px;
+    border-radius: 3px;
+    font-weight: 700;
+}
+
+/* État vide */
+.dash-search-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 0.85rem;
+}
+
+/* Loading */
+.dash-search-loading {
+    padding: 1rem;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* Footer avec raccourcis clavier */
+.dash-search-footer {
+    display: flex;
+    gap: 1.25rem;
+    padding: 0.4rem 1rem;
+    background: #fafafa;
+    border-top: 1px solid #f0f0f0;
+    font-size: 0.7rem;
+    color: #9ca3af;
+}
+
+.dash-search-footer kbd {
+    font-size: 0.62rem;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: #ececec;
+    border: 1px solid #d1d5db;
+    color: #555;
+    font-family: inherit;
+}
+
+
+
+.dash-date-pill {
+    background: #ffffff;
+    border-radius: 50px;
+    padding: 0.45rem 1.25rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #121212;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.dash-bento-card {
+    background: #212429;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 18px;
+    color: #ffffff;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+    padding: 1.25rem 1.4rem;
+    height: 100%;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.dash-bento-card:hover {
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+}
+
+.dash-card-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #e5e7eb;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.dash-metric-big {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #ffffff;
+    line-height: 1.1;
+}
+
+.dash-metric-sub {
+    font-size: 0.78rem;
+    color: #9ca3af;
+    margin-top: 0.35rem;
+}
+
+/* Barres horizontales de catégorie */
+.dash-bar-item {
+    margin-bottom: 0.65rem;
+}
+
+.dash-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: #d1d5db;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.dash-bar-track {
+    background: rgba(255, 255, 255, 0.1);
+    height: 8px;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.dash-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    background: var(--gta-orange);
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Switch toggles */
+.dash-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.45rem 0;
+    font-size: 0.82rem;
+    color: #e5e7eb;
+}
+
+.dash-switch {
+    width: 44px;
+    height: 24px;
+    border-radius: 50px;
+    background: #374151;
+    position: relative;
+    flex-shrink: 0;
+    cursor: default;
+    transition: background 0.2s ease;
+}
+
+.dash-switch.active-orange {
+    background: var(--gta-orange);
+}
+
+.dash-switch.active-green {
+    background: #10b981;
+}
+
+.dash-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Jauge circulaire SVG */
+.dash-gauge-svg {
+    transform: rotate(-90deg);
+}
+
+.dash-gauge-bg {
+    stroke: rgba(255, 255, 255, 0.08);
+}
+
+.dash-sparkline-svg {
+    width: 100%;
+    height: 38px;
+    overflow: visible;
+}
+
+/* Inset table pour dernières ventes / attributions */
+.dash-inset-table {
+    width: 100%;
+    font-size: 0.78rem;
+    color: #e5e7eb;
+}
+
+.dash-inset-table th {
+    color: #9ca3af;
+    font-weight: 600;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dash-inset-table td {
+    padding: 0.45rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Map / Node pins */
+.dash-node-pin {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #121212;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.62rem;
+    font-weight: 800;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+    transform: translate(-50%, -50%);
+}
+
+.dash-node-pulse {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(228, 112, 0, 0.25);
+    transform: translate(-50%, -50%);
+    animation: pulseRing 2s infinite ease-out;
+}
+
+@keyframes pulseRing {
+    0% { transform: translate(-50%, -50%) scale(0.6); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+}
+
+/* Défilement fluide et discret pour les cartes Bento */
+.dash-scroll-slim::-webkit-scrollbar {
+    width: 4px;
+}
+.dash-scroll-slim::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+.dash-scroll-slim::-webkit-scrollbar-thumb {
+    background: var(--gta-orange);
+    border-radius: 4px;
+}
+.dash-scroll-slim::-webkit-scrollbar-thumb:hover {
+    background: #ff8c1a;
+}
+
+
+/* ============================================================
+   DASHBOARD STAGGERED SLIDE-IN ANIMATION
+   Each card slides up with a fade, staggered one after another
+   ============================================================ */
+@keyframes dashSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateY(32px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dash-animate {
+    opacity: 0;
+    animation: dashSlideIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.dash-animate:nth-child(1)  { animation-delay: 0.05s; }
+.dash-animate:nth-child(2)  { animation-delay: 0.12s; }
+.dash-animate:nth-child(3)  { animation-delay: 0.19s; }
+.dash-animate:nth-child(4)  { animation-delay: 0.26s; }
+.dash-animate:nth-child(5)  { animation-delay: 0.33s; }
+.dash-animate:nth-child(6)  { animation-delay: 0.40s; }
+.dash-animate:nth-child(7)  { animation-delay: 0.47s; }
+.dash-animate:nth-child(8)  { animation-delay: 0.54s; }
+.dash-animate:nth-child(9)  { animation-delay: 0.61s; }
+.dash-animate:nth-child(10) { animation-delay: 0.68s; }
+
+/* Variant for items inside a row (gauges, etc.) */
+.dash-animate-item {
+    opacity: 0;
+    animation: dashSlideIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ==========================================================
+   SHORTCUTS KEYBOARD NAVIGATION
+   ========================================================== */
+
+   /* Ligne sélectionnée au clavier (compatible tableaux Bootstrap 5.3) */
+   tr.is-selected > * {
+       --bs-table-bg-state: rgba(228, 112, 0, 0.18);
+   }
+   tr.is-selected > :first-child {
+       box-shadow: inset 4px 0 0 #E47000, inset 0 0 0 9999px rgba(228, 112, 0, 0.18);
+   }
+
+   /* Petit message en bas à droite - style sophistiqué */
+   .shortcut-hint {
+       position: fixed;
+       right: 1rem;
+       bottom: 1rem;
+       z-index: 2000;
+       max-width: 24rem;
+       padding: 0.75rem 1rem;
+       border-radius: 0.65rem;
+       background: #1E1E1E;
+       color: #fff;
+       font-size: 0.875rem;
+       opacity: 0;
+       pointer-events: none;
+       transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+       transform: translateY(10px);
+       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(228, 112, 0, 0.2);
+       border: 1px solid rgba(228, 112, 0, 0.3);
+   }
+   .shortcut-hint.is-visible {
+       opacity: 1;
+       transform: translateY(0);
+   }
+   .shortcut-hint::before {
+       content: '';
+       position: absolute;
+       top: 0;
+       left: 0;
+       right: 0;
+       height: 3px;
+       background: linear-gradient(90deg, var(--gta-orange) 0%, #ff8c1a 100%);
+       border-radius: 0.65rem 0.65rem 0 0;
+   }
+
+   /* Touches affichées dans l'aide */
+   kbd {
+       background: #1E1E1E;
+       color: #fff;
+       border-bottom: 2px solid #E47000;
+       border-radius: 0.3rem;
+       padding: 0.15rem 0.5rem;
+       font-size: 0.75rem;
+       font-weight: 600;
+       font-family: inherit;
+       min-width: 32px;
+       text-align: center;
+       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+       display: inline-block;
+   }
+
+/* ==========================================================
+   FLOATING ACTION BUTTON (FAB) SPEED DIAL GTAC2A
+   ========================================================== */
+.gta-fab-container {
+    position: fixed;
+    bottom: 24px;
+    right: 28px;
+    z-index: 1045;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-end;
+    gap: 12px;
+    user-select: none;
+    pointer-events: none; /* Libère complètement le couloir vertical au-dessus du bouton */
+}
+
+/* Bouton principal */
+.gta-fab-btn-main {
+    pointer-events: auto; /* Seul le rond principal capte les clics */
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gta-orange) 0%, #ff8c1a 100%);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 8px 24px rgba(228, 112, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease;
+    position: relative;
+}
+
+.gta-fab-btn-main:hover {
+    transform: scale(1.08);
+    box-shadow: 0 12px 30px rgba(228, 112, 0, 0.6);
+}
+
+.gta-fab-btn-main:active {
+    transform: scale(0.95);
+}
+
+.gta-fab-btn-main i {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.gta-fab-container.is-active .gta-fab-btn-main i {
+    transform: rotate(45deg);
+}
+
+/* Liste des actions filles (Speed Dial) */
+.gta-fab-options {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-end;
+    gap: 10px;
+    pointer-events: none;
+    visibility: hidden; /* Empêche totalement de bloquer la zone quand fermé */
+}
+
+.gta-fab-container.is-active .gta-fab-options {
+    pointer-events: auto;
+    visibility: visible;
+}
+
+.gta-fab-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none !important;
+    opacity: 0;
+    transform: translateY(15px) scale(0.85);
+    transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+}
+
+.gta-fab-container.is-active .gta-fab-item {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.gta-fab-container.is-active .gta-fab-item:nth-child(1) { transition-delay: 0.03s; }
+.gta-fab-container.is-active .gta-fab-item:nth-child(2) { transition-delay: 0.07s; }
+.gta-fab-container.is-active .gta-fab-item:nth-child(3) { transition-delay: 0.11s; }
+.gta-fab-container.is-active .gta-fab-item:nth-child(4) { transition-delay: 0.15s; }
+
+/* Label textuel à gauche du bouton */
+.gta-fab-label {
+    background: #1e1e1e;
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+    white-space: nowrap;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    pointer-events: auto;
+}
+
+.gta-fab-label kbd {
+    background: #333333;
+    border-bottom: 2px solid var(--gta-orange);
+    padding: 0.1rem 0.35rem;
+    font-size: 0.68rem;
+    min-width: 20px;
+}
+
+/* Bouton rond d'action fille */
+.gta-fab-sub-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #121212;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    cursor: pointer;
+    transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
+    flex-shrink: 0;
+}
+
+.gta-fab-sub-btn:hover {
+    transform: scale(1.1);
+    background: var(--gta-orange);
+    color: #ffffff;
+}
+
+/* Backdrop transparent pour refermer en cliquant dehors */
+.gta-fab-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1040;
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.gta-fab-backdrop.is-active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ==========================================================
+   6. THEME CLAIR & SOMBRE (DARK MODE SYSTEM - BOOTSTRAP 5.3)
+   ========================================================== */
+html {
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Variables en mode Sombre */
+[data-bs-theme="dark"] {
+    --gta-black: #f8fafc;
+    --gta-dark: #0f1217;
+    --gta-white: #161922;
+    --gta-gray-bg: #0d0f14;
+    --gta-border: rgba(255, 255, 255, 0.08);
+    --gta-orange-light: rgba(228, 112, 0, 0.15);
+    --gta-orange-border: rgba(228, 112, 0, 0.35);
+
+    --bs-body-bg: #0d0f14;
+    --bs-body-color: #e2e8f0;
+    --bs-border-color: rgba(255, 255, 255, 0.08);
+    --bs-tertiary-bg: #161922;
+    --bs-secondary-bg: #1c202a;
+}
+
+/* Espaces principaux en mode sombre */
+[data-bs-theme="dark"] body,
+[data-bs-theme="dark"] .app-main {
+    background-color: #0d0f14 !important;
+    color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .app-topbar {
+    background-color: rgba(18, 21, 28, 0.96) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Cartes, headers et conteneurs */
+[data-bs-theme="dark"] .card {
+    background-color: #161922;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+}
+
+[data-bs-theme="dark"] .card-header {
+    background-color: #1b1f2a;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}
+
+[data-bs-theme="dark"] .card-form {
+    background-color: #161922;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Tableaux */
+[data-bs-theme="dark"] .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: #e2e8f0;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-bs-theme="dark"] .table-hover > tbody > tr:hover > * {
+    background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-bs-theme="dark"] .scroll-table-container thead th {
+    background-color: #1b1f2a !important;
+    color: #ffffff !important;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Formulaires & Sélecteurs en Mode Sombre */
+[data-bs-theme="dark"] form input[type="text"],
+[data-bs-theme="dark"] form input[type="password"],
+[data-bs-theme="dark"] form input[type="date"],
+[data-bs-theme="dark"] form input[type="datetime-local"],
+[data-bs-theme="dark"] form input[type="number"],
+[data-bs-theme="dark"] form input[type="email"],
+[data-bs-theme="dark"] form input[type="tel"],
+[data-bs-theme="dark"] form input[type="search"],
+[data-bs-theme="dark"] form input[type="file"],
+[data-bs-theme="dark"] form select,
+[data-bs-theme="dark"] form textarea,
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select,
+[data-bs-theme="dark"] input.form-control,
+[data-bs-theme="dark"] select.form-select,
+[data-bs-theme="dark"] textarea.form-control {
+    background-color: #131722 !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] form input:not([type="checkbox"]):not([type="radio"]):focus,
+[data-bs-theme="dark"] form select:focus,
+[data-bs-theme="dark"] form textarea:focus,
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus,
+[data-bs-theme="dark"] input.form-control:focus,
+[data-bs-theme="dark"] select.form-select:focus,
+[data-bs-theme="dark"] textarea.form-control:focus {
+    background-color: #181d2c !important;
+    border-color: var(--gta-orange) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 3px rgba(228, 112, 0, 0.3) !important;
+}
+
+[data-bs-theme="dark"] form input:not([type="checkbox"]):not([type="radio"]):hover,
+[data-bs-theme="dark"] form select:hover,
+[data-bs-theme="dark"] form textarea:hover,
+[data-bs-theme="dark"] .form-control:hover,
+[data-bs-theme="dark"] .form-select:hover {
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+[data-bs-theme="dark"] .form-control::placeholder,
+[data-bs-theme="dark"] input::placeholder,
+[data-bs-theme="dark"] textarea::placeholder {
+    color: #64748b !important;
+    opacity: 0.9;
+}
+
+[data-bs-theme="dark"] .form-control:disabled,
+[data-bs-theme="dark"] .form-control[readonly],
+[data-bs-theme="dark"] .form-select:disabled,
+[data-bs-theme="dark"] input:disabled,
+[data-bs-theme="dark"] input[readonly] {
+    background-color: #0d1017 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #94a3b8 !important;
+    opacity: 0.85;
+}
+
+[data-bs-theme="dark"] form select option,
+[data-bs-theme="dark"] .form-select option,
+[data-bs-theme="dark"] select option {
+    background-color: #131722 !important;
+    color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] form select,
+[data-bs-theme="dark"] .form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23cbd5e1' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+}
+
+[data-bs-theme="dark"] .form-text {
+    color: #94a3b8 !important;
+}
+
+[data-bs-theme="dark"] .form-section-title {
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-bs-theme="dark"] .input-group-text {
+    background-color: #1b1f2a !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    color: #cbd5e1 !important;
+}
+
+/* Éléments de recherche Dashboard */
+[data-bs-theme="dark"] .dash-search-pill {
+    background: #161922;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .dash-search-pill input {
+    color: #ffffff;
+}
+
+[data-bs-theme="dark"] .dash-search-panel {
+    background: #161922;
+    border-color: rgba(228, 112, 0, 0.4);
+}
+
+[data-bs-theme="dark"] .dash-search-group-label {
+    background: #13151b;
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+}
+
+[data-bs-theme="dark"] .dash-search-item {
+    color: #ffffff;
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-bs-theme="dark"] .dash-search-item:hover,
+[data-bs-theme="dark"] .dash-search-item.active {
+    background: rgba(228, 112, 0, 0.14);
+    color: #ffffff;
+}
+
+[data-bs-theme="dark"] .dash-search-item-icon {
+    background: #20242f;
+    color: #cbd5e1;
+}
+
+[data-bs-theme="dark"] .dash-search-footer {
+    background: #13151b;
+    border-top-color: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+}
+
+[data-bs-theme="dark"] .dash-date-pill {
+    background: #161922;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}
+
+/* Modales & Menus déroulants */
+[data-bs-theme="dark"] .modal-content {
+    background-color: #161922 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .modal-header,
+[data-bs-theme="dark"] .modal-footer {
+    background-color: #1b1f2b !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .modal-body {
+    background-color: #141722 !important;
+    color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .dropdown-menu {
+    background-color: #161922 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .dropdown-item {
+    color: #cbd5e1 !important;
+}
+
+[data-bs-theme="dark"] .dropdown-item:hover {
+    background-color: rgba(228, 112, 0, 0.14) !important;
+    color: #ff9d3b !important;
+}
+
+/* Typographie & Titres */
+[data-bs-theme="dark"] h1,
+[data-bs-theme="dark"] h2,
+[data-bs-theme="dark"] h3,
+[data-bs-theme="dark"] h4,
+[data-bs-theme="dark"] h5,
+[data-bs-theme="dark"] h6,
+[data-bs-theme="dark"] .h1,
+[data-bs-theme="dark"] .h2,
+[data-bs-theme="dark"] .h3,
+[data-bs-theme="dark"] .h4,
+[data-bs-theme="dark"] .h5,
+[data-bs-theme="dark"] .h6 {
+    color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] [style*="color: #121212"],
+[data-bs-theme="dark"] [style*="color:#121212"],
+[data-bs-theme="dark"] [style*="color: rgb(18, 18, 18)"] {
+    color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .text-dark {
+    color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .text-muted {
+    color: #94a3b8 !important;
+}
+
+/* Utilitaires de fond Bootstrap & inline styles */
+[data-bs-theme="dark"] .bg-light,
+[data-bs-theme="dark"] .bg-light-subtle {
+    background-color: #1b1f2a !important;
+    color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .bg-white {
+    background-color: #161922 !important;
+    color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] [style*="background: #ffffff"],
+[data-bs-theme="dark"] [style*="background:#ffffff"],
+[data-bs-theme="dark"] [style*="background-color: #ffffff"],
+[data-bs-theme="dark"] [style*="background-color:#ffffff"],
+[data-bs-theme="dark"] [style*="background: #fff"],
+[data-bs-theme="dark"] [style*="background:#fff"],
+[data-bs-theme="dark"] [style*="background-color: #fff"],
+[data-bs-theme="dark"] [style*="background-color:#fff"] {
+    background-color: #161922 !important;
+    color: #e2e8f0 !important;
+}
+
+/* Suggestion chips OS & Actions groupées */
+[data-bs-theme="dark"] .os-chip-btn,
+[data-bs-theme="dark"] .os-bulk-chip {
+    background: #1a1e2b !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #cbd5e1 !important;
+}
+
+[data-bs-theme="dark"] .os-chip-btn:hover,
+[data-bs-theme="dark"] .os-bulk-chip:hover {
+    background: #242a3b !important;
+    border-color: rgba(228, 112, 0, 0.5) !important;
+    color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .os-chip-btn.active,
+[data-bs-theme="dark"] .os-bulk-chip.active {
+    background: rgba(228, 112, 0, 0.22) !important;
+    border-color: var(--gta-orange) !important;
+    color: #ff9d3b !important;
+}
+
+[data-bs-theme="dark"] .bulk-field-card {
+    background: #191d28 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-bs-theme="dark"] .bulk-field-card.active-field {
+    background: #202636 !important;
+    border-color: var(--gta-orange) !important;
+}
+
+[data-bs-theme="dark"] .status-btn-opt {
+    background: #151822 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #cbd5e1 !important;
+}
+
+[data-bs-theme="dark"] .status-btn-opt:hover {
+    background: #232838 !important;
+    color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .status-btn-opt.active {
+    background: var(--gta-orange) !important;
+    border-color: var(--gta-orange) !important;
+    color: #ffffff !important;
+}
+
+/* Filigrane en mode sombre */
+[data-bs-theme="dark"] .gta-watermark-bg {
+    opacity: 0.035;
+    filter: brightness(1.2);
+}
+
+/* Boutons de toggle de thème */
+.theme-toggle-btn {
+    transition: all 0.2s ease;
+    border-color: rgba(128, 128, 128, 0.3) !important;
+    color: inherit;
+}
+
+.theme-toggle-btn:hover {
+    border-color: var(--gta-orange) !important;
+    color: var(--gta-orange) !important;
+    transform: rotate(15deg);
+}
+
+[data-bs-theme="dark"] .gta-fab-sub-btn {
+    background: #1f232c;
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* ==========================================================
+   7. MODE CLAIR — SIDEBAR BLANCHE & CORRECTIONS GLOBALES
+   ========================================================== */
+
+/* --- Sidebar blanche en mode clair --- */
+[data-bs-theme="light"] .app-sidebar {
+    background-color: #ffffff;
+    border-right: 1px solid #e5e7eb;
+    color: #1a1f2e;
+}
+
+[data-bs-theme="light"] .app-sidebar .sidebar-brand {
+    background-color: #f8f9fa;
+    box-shadow: 0 1px 0 #e5e7eb, 0 4px 15px rgba(228, 112, 0, 0.08);
+}
+
+[data-bs-theme="light"] .app-sidebar .sidebar-brand:hover {
+    background-color: #f1f3f5;
+}
+
+[data-bs-theme="light"] .sidebar-brand-title {
+    color: #111827;
+}
+
+[data-bs-theme="light"] .sidebar-brand-subtitle {
+    color: #9ca3af;
+}
+
+[data-bs-theme="light"] .sidebar-block {
+    background: #f8f9fa;
+    border-color: #e5e7eb;
+}
+
+[data-bs-theme="light"] .sidebar-block:hover {
+    border-color: #d1d5db;
+}
+
+[data-bs-theme="light"] .sidebar-user-card {
+    background: #f1f3f5;
+    border-color: #e5e7eb;
+}
+
+[data-bs-theme="light"] .sidebar-user-card:hover {
+    border-color: rgba(228, 112, 0, 0.35);
+    background: #ebebed;
+}
+
+/* Texte blanc hardcodé dans la user card → passe en sombre */
+[data-bs-theme="light"] .sidebar-user-card .text-white {
+    color: #111827 !important;
+}
+
+[data-bs-theme="light"] .sidebar-status-dot {
+    border-color: #f1f3f5;
+}
+
+[data-bs-theme="light"] .sidebar-section-title {
+    color: #6b7280;
+}
+
+[data-bs-theme="light"] .sidebar-nav .nav-link {
+    color: #374151;
+}
+
+[data-bs-theme="light"] .sidebar-nav .nav-link:hover,
+[data-bs-theme="light"] .sidebar-nav .nav-link:focus {
+    color: #E47000 !important;
+    background: rgba(228, 112, 0, 0.08) !important;
+    border-left-color: rgba(228, 112, 0, 0.5) !important;
+}
+
+[data-bs-theme="light"] .sidebar-nav .nav-link:hover i,
+[data-bs-theme="light"] .sidebar-nav .nav-link:focus i {
+    color: #E47000 !important;
+    filter: drop-shadow(0 0 5px rgba(228, 112, 0, 0.5));
+}
+
+[data-bs-theme="light"] .sidebar-nav .nav-link.active {
+    color: #111827 !important;
+    background: linear-gradient(90deg, rgba(228, 112, 0, 0.14) 0%, rgba(228, 112, 0, 0.03) 100%) !important;
+    border-left: 3px solid var(--gta-orange) !important;
+    box-shadow: 0 0 10px rgba(228, 112, 0, 0.12);
+}
+
+[data-bs-theme="light"] .sidebar-nav .nav-link.active i {
+    color: var(--gta-orange) !important;
+    filter: drop-shadow(0 0 6px rgba(228, 112, 0, 0.7));
+}
+
+[data-bs-theme="light"] .sidebar-nav .collapse .nav-link {
+    color: #6b7280;
+}
+
+[data-bs-theme="light"] .sidebar-nav .collapse .nav-link:hover {
+    color: #E47000 !important;
+    background: rgba(228, 112, 0, 0.07) !important;
+    border-left-color: rgba(228, 112, 0, 0.4) !important;
+}
+
+[data-bs-theme="light"] .sidebar-nav .collapse .nav-link.active {
+    color: #111827 !important;
+    background: rgba(228, 112, 0, 0.1) !important;
+    border-left: 2px solid var(--gta-orange) !important;
+}
+
+[data-bs-theme="light"] .sidebar-nav .collapse .nav-link.active i {
+    color: var(--gta-orange) !important;
+}
+
+/* Badges de raccourcis clavier dans la sidebar */
+[data-bs-theme="light"] .sidebar-kbd {
+    background: #f3f4f6;
+    color: #6b7280;
+    border-color: #d1d5db;
+}
+
+[data-bs-theme="light"] .sidebar-nav .nav-link:hover .sidebar-kbd {
+    color: #E47000;
+    border-color: rgba(228, 112, 0, 0.4);
+    background: rgba(228, 112, 0, 0.1);
+}
+
+[data-bs-theme="light"] .sidebar-nav .nav-link.active .sidebar-kbd {
+    color: #ffffff;
+    border-color: rgba(228, 112, 0, 0.6);
+    background: var(--gta-orange);
+    box-shadow: 0 0 6px rgba(228, 112, 0, 0.5);
+}
+
+/* Footer de la sidebar */
+[data-bs-theme="light"] .sidebar-footer {
+    background-color: #f8f9fa;
+    border-top-color: #e5e7eb;
+}
+
+[data-bs-theme="light"] .sidebar-ip-card {
+    background: #f1f3f5;
+    border-color: #e5e7eb;
+}
+
+[data-bs-theme="light"] .ip-pill {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+[data-bs-theme="light"] .sidebar-logout-btn {
+    border-color: #d1d5db !important;
+    color: #374151 !important;
+}
+
+/* Scrollbar de la sidebar en mode clair */
+[data-bs-theme="light"] .sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.12);
+}
+
+/* --- Adoucissement des noirs en mode clair --- */
+[data-bs-theme="light"] .form-label {
+    color: #374151 !important;
+}
+
+/* kbd en mode clair : fond gris foncé doux */
+[data-bs-theme="light"] kbd {
+    background: #374151;
+    color: #fff;
+    border-bottom-color: var(--gta-orange);
+}
+
+/* Hint de raccourci en mode clair */
+[data-bs-theme="light"] .shortcut-hint {
+    background: #1a1f2e;
+    color: #f8fafc;
+}
+
+/* Topbar : FAB sub-button en mode clair */
+[data-bs-theme="light"] .gta-fab-sub-btn {
+    background: #ffffff;
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+/* ==========================================================
+   8. MODE SOMBRE — CORRECTIONS & MANQUES D'OVERRIDES
+   ========================================================== */
+
+/* Badges de vétusté en mode sombre */
+[data-bs-theme="dark"] .badge-age-ok {
+    background-color: #052e16;
+    color: #6ee7b7;
+    border-color: #065f46;
+}
+
+[data-bs-theme="dark"] .badge-age-warning {
+    background-color: #451a03;
+    color: #fbbf24;
+    border-color: #92400e;
+}
+
+[data-bs-theme="dark"] .badge-age-obsolete {
+    background-color: #450a0a;
+    color: #fca5a5;
+    border-color: #7f1d1d;
+}
+
+/* Labels de formulaire en mode sombre */
+[data-bs-theme="dark"] .form-label {
+    color: #e2e8f0 !important;
+}
+
+/* Stat cards en mode sombre */
+[data-bs-theme="dark"] .stat-card {
+    background-color: #161922;
+    border-left-color: var(--gta-orange);
+}
+
+/* text-secondary en mode sombre */
+[data-bs-theme="dark"] .text-secondary {
+    color: #94a3b8 !important;
+}
+
+/* Alertes Bootstrap en mode sombre */
+[data-bs-theme="dark"] .alert:not(.alert-blink-danger) {
+    background-color: #1b1f2a;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+}
+
+/* Badges secondaires & light en mode sombre */
+[data-bs-theme="dark"] .badge.bg-secondary-subtle {
+    background-color: #1e2534 !important;
+    color: #94a3b8 !important;
+}
+
+[data-bs-theme="dark"] .badge.bg-light {
+    background-color: #1b1f2a !important;
+    color: #e2e8f0 !important;
+}
+
+/* Bouton Light dans la topbar en mode sombre */
+[data-bs-theme="dark"] .app-topbar .btn-light {
+    background: #161922 !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-bs-theme="dark"] .app-topbar .btn-light:hover {
+    background: #1c202a !important;
+    border-color: rgba(228, 112, 0, 0.4) !important;
+    color: #ff9d3b !important;
+}
+
+/* Panel d'info utilisateur dans le dropdown topbar */
+[data-bs-theme="dark"] .dropdown-menu .bg-light {
+    background-color: #1b1f2a !important;
+    color: #e2e8f0 !important;
+}
+
+/* Ip pill en mode sombre */
+[data-bs-theme="dark"] .ip-pill {
+    background: #1b1f2a;
+    color: #cbd5e1;
+}
+
+/* Badges border, list-group, pagination en mode sombre */
+[data-bs-theme="dark"] .badge.border {
+    border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-bs-theme="dark"] .list-group-item {
+    background-color: #161922;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+}
+
+/* Input-group (barres de recherche) en mode clair */
+[data-bs-theme="light"] .input-group-text.bg-light {
+    background-color: #f3f4f6 !important;
+    color: #6b7280 !important;
+    border-color: #d1d5db !important;
+}
+
+
+/* ==========================================================
+   9. MODE CLAIR — DASHBOARD BENTO CORRECTIONS
+   Les cartes .dash-bento-card restent intentionnellement sombres
+   (design bento = toujours dark). Seuls les éléments autour
+   et la topbar du dashboard sont ajustés.
+   ========================================================== */
+
+/* Titre "Tableau de bord" en mode clair */
+[data-bs-theme="light"] .dash-wrapper h1 {
+    color: #111827 !important;
+}
+
+/* Date pill en mode clair : déjà blanc avec texte #121212 → OK mais assure le contraste */
+[data-bs-theme="light"] .dash-date-pill {
+    background: #ffffff;
+    color: #111827;
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Search pill en mode clair : déjà blanc → OK, on force le texte visible */
+[data-bs-theme="light"] .dash-search-pill {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-bs-theme="light"] .dash-search-pill input {
+    color: #111827;
+}
+
+/* Search panel en mode clair */
+[data-bs-theme="light"] .dash-search-panel {
+    background: #ffffff;
+    border-color: rgba(228, 112, 0, 0.3);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+}
+
+[data-bs-theme="light"] .dash-search-group-label {
+    background: #f9fafb;
+    border-bottom-color: #f0f0f0;
+    color: #9ca3af;
+}
+
+[data-bs-theme="light"] .dash-search-item {
+    color: #111827;
+    border-bottom-color: #f5f5f5;
+}
+
+[data-bs-theme="light"] .dash-search-item:hover,
+[data-bs-theme="light"] .dash-search-item.active {
+    background: #fff7f0;
+    color: #111827;
+}
+
+[data-bs-theme="light"] .dash-search-item-icon {
+    background: #f3f4f6;
+}
+
+[data-bs-theme="light"] .dash-search-footer {
+    background: #fafafa;
+    border-top-color: #f0f0f0;
+    color: #9ca3af;
+}
+
+/* ==========================================================
+   9. MODE CLAIR — CARTES DU DASHBOARD EN BLANC ÉLÉGANT & NET
+   ========================================================== */
+
+/* Cartes Bento en blanc en thème clair */
+[data-bs-theme="light"] .dash-bento-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 18px;
+    color: #1e293b !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+[data-bs-theme="light"] .dash-bento-card:hover {
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
+    border-color: rgba(228, 112, 0, 0.35) !important;
+}
+
+/* Titres des cartes */
+[data-bs-theme="light"] .dash-bento-card .dash-card-title {
+    color: #0f172a !important;
+    font-weight: 700;
+}
+
+/* Métriques & chiffres */
+[data-bs-theme="light"] .dash-bento-card .dash-metric-big {
+    color: #0f172a !important;
+}
+
+[data-bs-theme="light"] .dash-bento-card .dash-metric-big.text-warning,
+[data-bs-theme="light"] .dash-bento-card .text-warning {
+    color: var(--gta-orange) !important;
+}
+
+[data-bs-theme="light"] .dash-bento-card .text-success {
+    color: #059669 !important;
+}
+
+[data-bs-theme="light"] .dash-bento-card .text-info {
+    color: #0284c7 !important;
+}
+
+/* Textes blancs ou clairs forcés dans les templates -> deviennent sombres et lisibles */
+[data-bs-theme="light"] .dash-bento-card .text-white,
+[data-bs-theme="light"] .dash-bento-card .text-light {
+    color: #1e293b !important;
+}
+
+/* Sous-métriques & textes estompés */
+[data-bs-theme="light"] .dash-bento-card .dash-metric-sub,
+[data-bs-theme="light"] .dash-bento-card .text-muted {
+    color: #64748b !important;
+}
+
+/* Séparateurs & bordures intérieures */
+[data-bs-theme="light"] .dash-bento-card .border-top,
+[data-bs-theme="light"] .dash-bento-card .border-bottom,
+[data-bs-theme="light"] .dash-bento-card .border-secondary,
+[data-bs-theme="light"] .dash-bento-card .border {
+    border-color: #f1f5f9 !important;
+}
+
+/* Lignes de toggles / contrôles système */
+[data-bs-theme="light"] .dash-bento-card .dash-toggle-row {
+    color: #1e293b !important;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 8px 12px;
+}
+
+[data-bs-theme="light"] .dash-bento-card .dash-toggle-row .text-white {
+    color: #0f172a !important;
+}
+
+/* Barres de catégories & barres de progression */
+[data-bs-theme="light"] .dash-bento-card .dash-bar-label {
+    color: #334155 !important;
+}
+
+[data-bs-theme="light"] .dash-bento-card .dash-bar-track,
+[data-bs-theme="light"] .dash-bento-card .progress {
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+/* Barre de progression blanche dans disponibilité/dotations -> orange GTA pour être bien visible */
+[data-bs-theme="light"] .dash-bento-card .progress-bar[style*="background: #ffffff"],
+[data-bs-theme="light"] .dash-bento-card .progress-bar[style*="background:#ffffff"] {
+    background: var(--gta-orange) !important;
+}
+
+/* Cartouches de répartition par lieu */
+[data-bs-theme="light"] .dash-bento-card div[style*="background: rgba(0, 0, 0"],
+[data-bs-theme="light"] .dash-bento-card div[style*="background:rgba(0,0,0"] {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+
+[data-bs-theme="light"] .dash-bento-card div[style*="background: rgba(0, 0, 0"] span.text-white {
+    color: #0f172a !important;
+}
+
+[data-bs-theme="light"] .dash-bento-card div[style*="background: rgba(0, 0, 0"] .badge.bg-dark {
+    background-color: #e2e8f0 !important;
+    color: #334155 !important;
+    border-color: #cbd5e1 !important;
+}
+
+/* Tableau intérieur (dernières dotations) */
+[data-bs-theme="light"] .dash-inset-table {
+    color: #1e293b !important;
+}
+
+[data-bs-theme="light"] .dash-inset-table th {
+    color: #64748b !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+}
+
+[data-bs-theme="light"] .dash-inset-table td {
+    color: #1e293b !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+}
+
+[data-bs-theme="light"] .dash-inset-table tbody tr:hover td {
+    background: #f8fafc !important;
+}
+
+/* Jauges circulaires SVG */
+[data-bs-theme="light"] .dash-gauge-bg {
+    stroke: #e2e8f0 !important;
+}
+
+[data-bs-theme="light"] .dash-bento-card circle[stroke="rgba(255,255,255,0.06)"] {
+    stroke: #e2e8f0 !important;
+}
+
+[data-bs-theme="light"] .dash-bento-card .position-absolute span.text-white {
+    color: #0f172a !important;
+}
+
+/* Boutons dans les cartes */
+[data-bs-theme="light"] .dash-bento-card .btn-outline-light {
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    background: #f8fafc !important;
+}
+
+[data-bs-theme="light"] .dash-bento-card .btn-outline-light:hover {
+    background: var(--gta-orange) !important;
+    color: #ffffff !important;
+    border-color: var(--gta-orange) !important;
+}
+
+[data-bs-theme="light"] .dash-bento-card .btn-outline-warning {
+    color: var(--gta-orange) !important;
+    border-color: var(--gta-orange) !important;
+}
+
+/* Badges */
+[data-bs-theme="light"] .dash-bento-card .badge.bg-white {
+    background-color: #f1f5f9 !important;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+[data-bs-theme="light"] .dash-bento-card .badge.bg-light {
+    background-color: #f8fafc !important;
+    color: #334155 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+[data-bs-theme="light"] .dash-bento-card .badge.bg-dark {
+    background-color: #f1f5f9 !important;
+    color: #475569 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+/* Icônes */
+[data-bs-theme="light"] .dash-bento-card .bi.text-muted {
+    color: #94a3b8 !important;
+}
+
+/* Liens d'action */
+[data-bs-theme="light"] .dash-bento-card a.text-warning {
+    color: var(--gta-orange) !important;
+    font-weight: 600;
+}
+
+[data-bs-theme="light"] .dash-bento-card a.text-warning:hover {
+    color: #cc6400 !important;
+}
+
+/* Scrollbar slim dans les bento */
+[data-bs-theme="light"] .dash-scroll-slim::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+
+/* ==========================================================
+   12. MODE SOMBRE — CORRECTIONS GLOBALES COMPLÉMENTAIRES
+   ========================================================== */
+
+/* ── Titres h1/h2/h3 avec style="color: #121212" inline ── */
+[data-bs-theme="dark"] h1[style*="color: #121212"],
+[data-bs-theme="dark"] h1[style*="color:#121212"],
+[data-bs-theme="dark"] h2[style*="color: #121212"],
+[data-bs-theme="dark"] h2[style*="color:#121212"],
+[data-bs-theme="dark"] h3[style*="color: #121212"],
+[data-bs-theme="dark"] h3[style*="color:#121212"] {
+    color: #f1f5f9 !important;
+}
+
+/* ── Barres de recherche : .form-control.bg-light et .input-group-text.bg-light ── */
+[data-bs-theme="dark"] .form-control.bg-light,
+[data-bs-theme="dark"] .form-control.bg-light:focus,
+[data-bs-theme="dark"] input.bg-light,
+[data-bs-theme="dark"] input.bg-light:focus {
+    background-color: #131722 !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .input-group-text.bg-light {
+    background-color: #1b1f2a !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    color: #94a3b8 !important;
+}
+
+/* ── Tableaux avec thead table-light ── */
+[data-bs-theme="dark"] .table-light,
+[data-bs-theme="dark"] thead.table-light th,
+[data-bs-theme="dark"] thead.table-light td {
+    --bs-table-bg: #1b1f2a !important;
+    background-color: #1b1f2a !important;
+    color: #cbd5e1 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ── Pagination ── */
+[data-bs-theme="dark"] .page-link {
+    background-color: #161922 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #cbd5e1 !important;
+}
+
+[data-bs-theme="dark"] .page-item.disabled .page-link {
+    background-color: #131722 !important;
+    color: #64748b !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-bs-theme="dark"] .page-item.active .page-link {
+    background-color: var(--gta-orange) !important;
+    border-color: var(--gta-orange) !important;
+    color: #ffffff !important;
+}
+
+/* Barre de pagination bg-light en bas de tableau */
+[data-bs-theme="dark"] .d-flex.bg-light.border-top {
+    background-color: #1b1f2a !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #e2e8f0 !important;
+}
+
+/* ── Boîtes .bg-light.rounded.border (hash fingerprint, profil, etc.) ── */
+[data-bs-theme="dark"] .bg-light.rounded.border,
+[data-bs-theme="dark"] .bg-light.rounded-2.border,
+[data-bs-theme="dark"] .bg-light.rounded-3.border {
+    background-color: #1b1f2a !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #cbd5e1 !important;
+}
+
+/* ── .bg-light.rounded sans border ── */
+[data-bs-theme="dark"] .bg-light.rounded,
+[data-bs-theme="dark"] .bg-light.rounded-2,
+[data-bs-theme="dark"] .bg-light.rounded-3 {
+    background-color: #1b1f2a !important;
+    color: #e2e8f0 !important;
+}
+
+/* ── Cartes profil/WebAuthn avec style background: #ffffff ── */
+[data-bs-theme="dark"] .card[style*="background: #ffffff"],
+[data-bs-theme="dark"] .card[style*="background:#ffffff"],
+[data-bs-theme="dark"] .card[style*="background-color: #ffffff"],
+[data-bs-theme="dark"] .card[style*="background-color:#ffffff"] {
+    background-color: #161922 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #e2e8f0 !important;
+}
+
+/* ── card-header bg-white ── */
+[data-bs-theme="dark"] .card-header.bg-white,
+[data-bs-theme="dark"] .card-header[style*="background: #ffffff"],
+[data-bs-theme="dark"] .card-header[style*="background:#ffffff"] {
+    background-color: #1b1f2a !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #f8fafc !important;
+}
+
+/* ── h6 et span dans les card-headers ── */
+[data-bs-theme="dark"] .card-header h6,
+[data-bs-theme="dark"] .card-header .fw-bold {
+    color: #f8fafc !important;
+}
+
+/* ── .text-dark sur h6, span, div (badge labels, card titles) ── */
+[data-bs-theme="dark"] h6.text-dark,
+[data-bs-theme="dark"] span.fw-bold.text-dark,
+[data-bs-theme="dark"] div.fw-bold.text-dark,
+[data-bs-theme="dark"] div.fw-semibold.text-dark,
+[data-bs-theme="dark"] span.fw-semibold.text-dark {
+    color: #f8fafc !important;
+}
+
+/* ── Badges .bg-secondary-subtle.text-dark ── */
+[data-bs-theme="dark"] .badge.bg-secondary-subtle.text-dark,
+[data-bs-theme="dark"] .badge.bg-light.text-dark,
+[data-bs-theme="dark"] .badge.border.text-dark {
+    background-color: #1e2534 !important;
+    color: #94a3b8 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── Tableaux sm et bordés (détails diff audit) ── */
+[data-bs-theme="dark"] .table-sm.table-bordered thead th {
+    background-color: #1b1f2a !important;
+    color: #cbd5e1 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-bs-theme="dark"] .table-bordered,
+[data-bs-theme="dark"] .table-bordered td,
+[data-bs-theme="dark"] .table-bordered th {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ── Cellules colorées diff ── */
+[data-bs-theme="dark"] td.text-danger.bg-danger-subtle {
+    background-color: rgba(127, 29, 29, 0.25) !important;
+    color: #fca5a5 !important;
+}
+
+[data-bs-theme="dark"] td.text-success.bg-success-subtle {
+    background-color: rgba(5, 46, 22, 0.25) !important;
+    color: #6ee7b7 !important;
+}
+
+/* ── Séparateurs border-start / border-end ── */
+[data-bs-theme="dark"] .border-start {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ── Champs readonly bg-light (marque) ── */
+[data-bs-theme="dark"] input[readonly].bg-light {
+    background-color: #0d1017 !important;
+    color: #64748b !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ── Boutons outline-secondary ── */
+[data-bs-theme="dark"] .btn-outline-secondary {
+    color: #94a3b8 !important;
+    border-color: rgba(148, 163, 184, 0.35) !important;
+}
+
+[data-bs-theme="dark"] .btn-outline-secondary:hover,
+[data-bs-theme="dark"] .btn-outline-secondary:focus {
+    background-color: rgba(148, 163, 184, 0.12) !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(148, 163, 184, 0.5) !important;
+}
+
+/* ── Boutons outline-dark ── */
+[data-bs-theme="dark"] .btn-outline-dark {
+    color: #e2e8f0 !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-bs-theme="dark"] .btn-outline-dark:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+}

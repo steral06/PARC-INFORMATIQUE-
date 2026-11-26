@@ -1,0 +1,291 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Postes Autorisés & Restriction IP | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+<div data-controller="auto-refresh" data-auto-refresh-interval-value="4000">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h1 class="h3 fw-bold mb-0">Contrôle Réseau & Postes Autorisés</h1>
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                    <i class="bi bi-shield-lock-fill me-1"></i> Zone Superadmin
+                </span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1">
+                    <span class="spinner-grow spinner-grow-sm text-success" style="width: 7px; height: 7px;"></span>
+                    Live 4s
+                </span>
+            </div>
+            <p class="text-muted mb-0 small">
+                Supervision en temps réel des machines connectées avec le compte partagé et contrôle instantané des restrictions IP.
+            </p>
+        </div>
+
+        <div>
+            <button type="button" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNewPoste" data-shortcut="n" title="Raccourci : N">
+                <i class="bi bi-plus-circle"></i>
+                Ajouter une IP manuellement
+            </button>
+        </div>
+    </div>
+
+    {# Calcul des statistiques en direct #}
+    {% set autorisesCount = 0 %}
+    {% set bloquesCount = 0 %}
+    {% set enLigneCount = 0 %}
+
+    {% for p in postes %}
+        {% if p.isAutorise %}
+            {% set autorisesCount = autorisesCount + 1 %}
+        {% else %}
+            {% set bloquesCount = bloquesCount + 1 %}
+        {% endif %}
+        {% if p.isEnLigne(20) %}
+            {% set enLigneCount = enLigneCount + 1 %}
+        {% endif %}
+    {% endfor %}
+
+    {# 4 Stat Cards #}
+    <div class="row g-3 mb-4">
+        <!-- En ligne en direct -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card p-3 border-success border-opacity-50">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase">Connectés en Direct</span>
+                        <h3 class="fw-bold my-1 text-success d-flex align-items-center gap-2">
+                            {{ enLigneCount }}
+                            {% if enLigneCount > 0 %}
+                                <span class="spinner-grow spinner-grow-sm text-success" style="width: 12px; height: 12px;"></span>
+                            {% endif %}
+                        </h3>
+                        <small class="text-success fw-medium">Actifs maintenant</small>
+                    </div>
+                    <div class="stat-icon bg-success-subtle text-success">
+                        <i class="bi bi-broadcast"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Machines -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase">Total Répertoire</span>
+                        <h3 class="fw-bold my-1">{{ postes|length }}</h3>
+                        <small class="text-primary fw-medium">Machines détectées</small>
+                    </div>
+                    <div class="stat-icon bg-primary-subtle text-primary">
+                        <i class="bi bi-pc-horizontal"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Postes Autorisés -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase">Postes Autorisés</span>
+                        <h3 class="fw-bold my-1 text-primary">{{ autorisesCount }}</h3>
+                        <small class="text-primary fw-medium">Accès valide</small>
+                    </div>
+                    <div class="stat-icon bg-primary-subtle text-primary">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Postes Bloqués -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card p-3 border-danger border-opacity-25">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted small fw-semibold text-uppercase">Postes Restreints</span>
+                        <h3 class="fw-bold my-1 text-danger">{{ bloquesCount }}</h3>
+                        <small class="text-danger fw-medium">Bloqués / Déconnectés</small>
+                    </div>
+                    <div class="stat-icon bg-danger-subtle text-danger">
+                        <i class="bi bi-slash-circle-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Postes Table #}
+    <div class="card shadow-sm">
+        <div class="card-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
+            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                <i class="bi bi-shield-shaded text-primary"></i>
+                <span class="fw-bold">Machines Clientes &amp; État de Connexion en Direct</span>
+            </div>
+            <form method="get" class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 380px;">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" value="{{ current_search }}" class="form-control bg-light border-start-0" placeholder="Rechercher IP, nom de poste..." data-shortcut="/">
+                </div>
+                {% if current_search is not empty %}
+                    <a href="{{ path('app_postes_index') }}" class="btn btn-outline-secondary btn-sm flex-shrink-0" title="Effacer">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                {% endif %}
+            </form>
+            <span class="badge bg-light text-dark border flex-shrink-0">{{ postes|length }} machine(s)</span>
+        </div>
+
+        <div class="scroll-table-container">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col" class="ps-3">Nom du Poste</th>
+                        <th scope="col">Adresse IP</th>
+                        <th scope="col">Activité Réseau</th>
+                        <th scope="col">1ère Connexion</th>
+                        <th scope="col">Statut Droit</th>
+                        <th scope="col" class="text-end pe-3">Actions Superadmin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for poste in postes %}
+                        {% set isOnline = poste.isEnLigne(20) %}
+                        <tr class="{% if not poste.isAutorise %}table-danger-subtle bg-danger bg-opacity-10{% elseif isOnline %}table-success-subtle bg-success bg-opacity-10{% endif %}" data-shortcuts-target="row" data-action="click->shortcuts#pick">
+                            <td class="ps-3">
+                                <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-display text-muted"></i>
+                                    {{ poste.nom }}
+                                    {% if poste.adresseIp == client_ip %}
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle" title="Machine actuellement utilisée">
+                                            Votre machine
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                {% if poste.description %}
+                                    <small class="text-muted d-block text-truncate" style="max-width: 260px;">{{ poste.description }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <code class="px-2 py-1 bg-light border rounded text-dark fw-bold">{{ poste.adresseIp }}</code>
+                            </td>
+                            <td>
+                                {% if isOnline %}
+                                    <span class="badge bg-success text-white d-inline-flex align-items-center gap-1 shadow-sm px-2 py-1">
+                                        <span class="spinner-grow spinner-grow-sm text-white" style="width: 8px; height: 8px;"></span>
+                                        <strong>En ligne</strong>
+                                    </span>
+                                    <small class="d-block text-success fw-medium mt-1">Actif maintenant</small>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border px-2 py-1">
+                                        <i class="bi bi-circle me-1 text-secondary"></i> Hors ligne
+                                    </span>
+                                    {% if poste.dateDerniereActivite %}
+                                        <small class="d-block text-muted mt-1">{{ poste.dateDerniereActivite|date('H:i:s') }}</small>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td class="small text-muted">
+                                {{ poste.datePremiereConnexion ? poste.datePremiereConnexion|date('d/m/Y H:i') : '-' }}
+                            </td>
+                            <td>
+                                {% if poste.isAutorise %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="bi bi-shield-check me-1"></i> Autorisé
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger text-white border border-danger px-2 py-1 shadow-sm">
+                                        <i class="bi bi-shield-slash me-1"></i> Restreint / Bloqué
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-3">
+                                <div class="d-inline-flex gap-2">
+                                    {# Toggle Status Form #}
+                                    <form method="post" action="{{ path('app_postes_toggle', {id: poste.id}) }}" class="d-inline">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('toggle_poste_' ~ poste.id) }}">
+                                        {% if poste.isAutorise %}
+                                            <button type="submit" class="btn btn-outline-danger btn-sm d-flex align-items-center gap-1 shadow-sm" title="Restreindre ce poste et déconnecter immédiatement" onclick="return confirm('Voulez-vous restreindre ce poste ? S\'il est actuellement connecté, il sera déconnecté sur-le-champ.');" data-shortcut="m">
+                                                <i class="bi bi-slash-circle"></i>
+                                                <span>Restreindre</span>
+                                            </button>
+                                        {% else %}
+                                            <button type="submit" class="btn btn-success btn-sm d-flex align-items-center gap-1 shadow-sm" title="Autoriser à nouveau ce poste" data-shortcut="m">
+                                                <i class="bi bi-check-lg"></i>
+                                                <span>Débloquer</span>
+                                            </button>
+                                        {% endif %}
+                                    </form>
+
+                                    {# Delete Button triggering GTA Modal #}
+                                    <button type="button" 
+                                            class="btn btn-outline-secondary btn-sm" 
+                                            title="Supprimer ce poste"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#gtaDeleteModal"
+                                            data-delete-url="{{ path('app_postes_delete', {id: poste.id}) }}"
+                                            data-item-name="Poste IP: {{ poste.nom }} ({{ poste.adresseIp }})"
+                                            data-token="{{ csrf_token('delete_poste_' ~ poste.id) }}"
+                                            data-shortcut="s">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="bi bi-shield-x fs-1 d-block mb-2 text-secondary"></i>
+                                Aucune machine n'a encore été enregistrée. Les machines clientes apparaîtront automatiquement dès leur première connexion.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<div class="modal fade" id="modalNewPoste" tabindex="-1" aria-labelledby="modalNewPosteLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <form method="post" action="{{ path('app_postes_new') }}">
+                <div class="modal-header border-bottom py-3 px-4" style="background-color: #fafafa; border-top: 4px solid var(--gta-orange) !important;">
+                    <h5 class="modal-title fw-bold text-dark fs-6" id="modalNewPosteLabel">
+                        <i class="bi bi-shield-plus text-primary me-2"></i>
+                        Déclarer une Adresse IP Autorisée
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <input type="hidden" name="_token" value="{{ csrf_token('new_poste') }}">
+
+                    <div class="mb-3">
+                        <label for="nom" class="form-label small fw-semibold">Nom du Poste / Emplacement</label>
+                        <input type="text" class="form-control" id="nom" name="nom" required placeholder="Ex : PC Accueil Bâtiment A, Poste Direction...">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="adresse_ip" class="form-label small fw-semibold">Adresse IP</label>
+                        <input type="text" class="form-control font-monospace" id="adresse_ip" name="adresse_ip" required placeholder="Ex : 192.168.1.45 ou 127.0.0.1">
+                        <small class="text-muted">Adresse IPv4 ou IPv6 du terminal client.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label small fw-semibold">Description / Remarques</label>
+                        <textarea class="form-control" id="description" name="description" rows="2" placeholder="Informations complémentaires..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer et autoriser</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,1328 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ equipement.nom }} | GTAC2A-IARDT{% endblock %}
+
+{% block stylesheets %}
+<style>
+    [data-bs-theme="dark"] #quickPersonnelCardPreview {
+        background: #191e2b !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+    }
+    [data-bs-theme="dark"] #quickPreviewNom {
+        color: #f8fafc !important;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="mb-3 flex-shrink-0">
+    <a href="{{ path('app_equipement_index') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 mb-2">
+        <i class="bi bi-arrow-left"></i>
+        <span>Retour à l'inventaire</span>
+    </a>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+            <h1 class="h3 fw-bold mb-1" style="color: #121212;">{{ equipement.nom }}</h1>
+            <p class="text-muted mb-0 small">
+                {{ equipement.marque }} &bull; {{ equipement.modele }} &bull; N° Série : <strong class="font-monospace text-dark">{{ equipement.numeroSerie }}</strong>
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            {# Bouton PDF grisé pour version ultérieure #}
+            <button type="button"
+                    class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 shadow-sm opacity-50"
+                    disabled
+                    title="Export PDF bientôt disponible (version ultérieure)"
+                    style="cursor: not-allowed;">
+                <i class="bi bi-file-earmark-pdf text-secondary"></i>
+                <span>PDF</span>
+                <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size: 0.65rem;">Bientôt</span>
+            </button>
+            {# ── Bouton Préparer / Vérifier (Ordinateurs En stock ou En service uniquement) ── #}
+            {% if equipement.isEligiblePreparation %}
+            <button type="button"
+                    class="btn btn-sm d-inline-flex align-items-center gap-1 shadow-sm fw-semibold"
+                    style="background: linear-gradient(135deg,#111317,#2d3748); color:#fff; border:none;"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalChecklist"
+                    onclick="window.preparerNouveauModal()"
+                    title="Lancer la vérification étape par étape de la machine">
+                <i class="bi bi-clipboard2-check{% if equipement.statut == 'En service' %}-fill{% endif %}"></i>
+                <span>{% if equipement.statut == 'En service' %}Sauvegarder &amp; Préparer{% else %}Préparer{% endif %}</span>
+            </button>
+            {% endif %}
+            <button type="button"
+                    class="btn btn-dark btn-sm d-inline-flex align-items-center gap-1 shadow-sm"
+                    id="btnAttribuerRapide"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalAttribuerRapide">
+                <i class="bi bi-person-plus"></i>
+                <span>Attribuer</span>
+            </button>
+            <a href="{{ path('app_maintenance_new', {'equipement_id': equipement.id}) }}" class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+                <i class="bi bi-tools"></i>
+                <span>Signaler Panne</span>
+            </a>
+            <a href="{{ path('app_equipement_edit', {'id': equipement.id}) }}" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm" data-shortcut="m" title="Raccourci : M">
+                <i class="bi bi-pencil"></i>
+                <span>Modifier</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 align-items-start">
+    <!-- COLONNE GAUCHE (Fiche Spécifications FIXE sous les yeux) -->
+    <div class="col-12 col-lg-5" style="position: sticky; top: 0;">
+        <div class="card card-form mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="fw-bold small"><i class="bi bi-pc-display me-1 text-primary"></i> Spécifications</span>
+                {% if equipement.statut == 'En service' %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">En service</span>
+                {% elseif equipement.statut == 'En stock' %}
+                    <span class="badge bg-secondary-subtle text-dark border">En stock</span>
+                {% elseif equipement.statut == 'En panne' %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">En panne</span>
+                {% else %}
+                    <span class="badge bg-warning-subtle text-dark border">{{ equipement.statut }}</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush small">
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                        <span class="text-muted">Numéro de série (S/N)</span>
+                        <strong class="font-monospace text-dark">{{ equipement.numeroSerie }}</strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                        <span class="text-muted">Code inventaire</span>
+                        <span class="badge bg-light text-dark border font-monospace">{{ equipement.tagInventaire ?? '—' }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                        <span class="text-muted">Adresse IP</span>
+                        {% if equipement.adresseIp %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace">
+                                <i class="bi bi-broadcast me-1"></i>{{ equipement.adresseIp }}
+                            </span>
+                        {% else %}
+                            <span class="text-muted">Non configurée</span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                        <span class="text-muted">Système d'exploitation</span>
+                        {% if equipement.systemeExploitation %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
+                                <i class="bi bi-window me-1"></i>{{ equipement.systemeExploitation }}
+                            </span>
+                        {% else %}
+                            <span class="text-muted">Non renseigné</span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                        <span class="text-muted">Catégorie</span>
+                        <span class="fw-semibold">{{ equipement.categorie ? equipement.categorie.nomCat : 'Non classé' }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                        <span class="text-muted">Emplacement</span>
+                        <span class="fw-semibold">{{ equipement.lieu ? equipement.lieu.nomLieu : 'Non affecté' }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                        <span class="text-muted">Date d'acquisition</span>
+                        <span>{{ equipement.dateAcquisition ? equipement.dateAcquisition|date('d/m/Y') : 'Non renseignée' }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                        <span class="text-muted">Âge</span>
+                        <span>
+                            {% if equipement.ageAnnees is not null %}
+                                {% if equipement.isObsolete %}
+                                    <span class="badge badge-age-obsolete">
+                                        <i class="bi bi-exclamation-octagon-fill me-1"></i>{{ equipement.ageAnnees }} ans (Obsolète)
+                                    </span>
+                                {% elseif equipement.isVieillissant %}
+                                    <span class="badge badge-age-warning">
+                                        <i class="bi bi-clock-history me-1"></i>{{ equipement.ageAnnees }} ans (Vieillissant)
+                                    </span>
+                                {% else %}
+                                    <span class="badge badge-age-ok">
+                                        <i class="bi bi-check-circle me-1"></i>{{ equipement.ageAnnees }} ans
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted small">Non renseigné</span>
+                            {% endif %}
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                        <span class="text-muted">Fin de garantie</span>
+                        <span>
+                            {% if equipement.finGarantie %}
+                                {{ equipement.finGarantie|date('d/m/Y') }}
+                                {% if equipement.finGarantie|date('Y-m-d') < 'now'|date('Y-m-d') %}
+                                    <span class="badge bg-danger-subtle text-danger ms-1">Expirée</span>
+                                {% else %}
+                                    <span class="badge bg-success-subtle text-success ms-1">Valide</span>
+                                {% endif %}
+                            {% else %}
+                                N/C
+                            {% endif %}
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                        <span class="text-muted">Prix d'achat</span>
+                        <span class="fw-bold">{{ equipement.prixAchat ? (equipement.prixAchat|number_format(0, ',', ' ') ~ ' FCFA') : 'N/C' }}</span>
+                    </li>
+                </ul>
+            </div>
+            {% if equipement.notes %}
+                <div class="card-footer bg-light p-3">
+                    <small class="text-muted fw-bold d-block mb-1">Notes & Spécifications :</small>
+                    <p class="small text-dark mb-0">{{ equipement.notes }}</p>
+                </div>
+            {% endif %}
+        </div>
+
+        {# Préparation de l'avertissement de scandale / impact si relations existantes #}
+        {% set totalRelations = (attributions|length) + (tickets|length) + (composants|length) %}
+        {% set scandalText = '' %}
+        {% if totalRelations > 0 %}
+            {% set scandalText = '⚠️ Cet équipement est actuellement associé à ' ~ attributions|length ~ ' attribution(s), ' ~ tickets|length ~ ' ticket(s) de maintenance et ' ~ composants|length ~ ' composant(s) interne(s). Sa suppression rompra la liaison de ces données dans le parc !' %}
+        {% endif %}
+
+        {# Bouton de suppression déclenchant la modale GTA avec avertissement #}
+        <button type="button" 
+                class="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-1 shadow-sm"
+                data-bs-toggle="modal" 
+                data-bs-target="#gtaDeleteModal"
+                data-delete-url="{{ path('app_equipement_delete', {'id': equipement.id}) }}"
+                data-item-name="{{ equipement.nom }} (S/N: {{ equipement.numeroSerie }})"
+                data-token="{{ csrf_token('delete' ~ equipement.id) }}"
+                data-scandal-count="{{ totalRelations }}"
+                data-scandal-text="{{ scandalText }}"
+                data-shortcut="s">
+            <i class="bi bi-trash3"></i>
+            <span>Supprimer cet équipement</span>
+        </button>
+    </div>
+
+    <!-- COLONNE DROITE (Historique des Attributions & Maintenances indépendant) -->
+    <div class="col-12 col-lg-7 scroll-pane-right">
+        <!-- Historique des Utilisateurs & Attributions -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fw-bold small text-dark">
+                        <i class="bi bi-people-fill me-1 text-primary"></i> Historique des Utilisateurs
+                    </span>
+                    {% if attributions|length > 0 %}
+                        <span class="badge bg-secondary-subtle text-secondary border font-monospace" style="font-size: 0.72rem;">
+                            {{ attributions|length }} bénéficiaire(s)
+                        </span>
+                    {% endif %}
+                </div>
+                <button type="button"
+                        class="btn btn-outline-dark btn-sm py-0 px-2"
+                        style="font-size: 0.78rem;"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalAttribuerRapide">
+                    <i class="bi bi-plus-lg me-1"></i>Nouveau prêt
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small">
+                            <tr>
+                                <th>Utilisateur / Bénéficiaire</th>
+                                <th>Période d'utilisation</th>
+                                <th>Motif</th>
+                                <th class="text-end">Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for att in attributions %}
+                                <tr class="{{ att.statut == 'En cours' ? 'table-warning-subtle' : '' }}">
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0" style="width: 32px; height: 32px; background: {{ att.statut == 'En cours' ? 'var(--gta-orange)' : '#64748b' }}; font-size: 0.75rem; font-weight: 700;">
+                                                {{ att.beneficiaireNom|slice(0, 1)|upper }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold text-dark small d-flex align-items-center gap-1">
+                                                    <span>{{ att.beneficiaireNom }}</span>
+                                                    {% if att.statut == 'En cours' %}
+                                                        <span class="badge bg-success text-white" style="font-size: 0.65rem;">Actuel</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="text-muted small d-flex align-items-center gap-1" style="font-size: 0.72rem;">
+                                                    {% if att.personnel and att.personnel.matricule %}
+                                                        <span class="badge bg-light text-dark border font-monospace px-1 py-0" style="font-size: 0.65rem;">{{ att.personnel.matricule }}</span>
+                                                    {% endif %}
+                                                    <span>{{ att.beneficiaireService ?? 'GTAC2A-IARDT' }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="small">
+                                            <i class="bi bi-calendar-check me-1 text-muted"></i>
+                                            <strong>{{ att.dateDebut|date('d/m/Y') }}</strong>
+                                            <i class="bi bi-arrow-right mx-1 text-muted"></i>
+                                            {% if att.dateRestitution %}
+                                                <span class="text-muted">{{ att.dateRestitution|date('d/m/Y') }}</span>
+                                            {% else %}
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.68rem;">En cours</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted fst-italic" style="font-size: 0.75rem;">
+                                            {{ att.motif ? (att.motif|length > 35 ? att.motif|slice(0, 35) ~ '…' : att.motif) : 'Dotation standard' }}
+                                        </small>
+                                    </td>
+                                    <td class="text-end">
+                                        {% if att.statut == 'En cours' %}
+                                            <div class="d-flex align-items-center justify-content-end gap-1">
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.72rem;">
+                                                    <i class="bi bi-check-circle-fill me-1"></i>En service
+                                                </span>
+                                                <form method="post" action="{{ path('app_attribution_restituer', {'id': att.id}) }}" class="d-inline" onsubmit="return confirm('Confirmer la restitution de cet équipement ?');">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('restituer' ~ att.id) }}">
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm p-1 py-0" title="Restituer l'équipement en stock" style="font-size: 0.72rem;">
+                                                        <i class="bi bi-box-arrow-in-down-left"></i> Restituer
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border" style="font-size: 0.72rem;">
+                                                <i class="bi bi-clock-history me-1"></i>Restitué
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted small">
+                                        <i class="bi bi-box-seam fs-4 d-block mb-1 text-secondary opacity-50"></i>
+                                        Aucun historique d'utilisateur enregistré pour ce matériel.<br>
+                                        <span class="text-muted opacity-75">Équipement neuf ou en stock disponible.</span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- Composants & Pièces installés -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="fw-bold small text-dark"><i class="bi bi-cpu me-1 text-primary"></i> Composants & Pièces Installés</span>
+                <a href="{{ path('app_composant_new', {'equipement_id': equipement.id}) }}" class="btn btn-outline-dark btn-sm py-0 px-2" style="font-size: 0.78rem;">
+                    + Ajouter composant
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small">
+                            <tr>
+                                <th>Désignation</th>
+                                <th>Type</th>
+                                <th>S/N</th>
+                                <th>Vétusté</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for comp in composants %}
+                                <tr>
+                                    <td class="fw-semibold text-dark small">{{ comp.nom }}</td>
+                                    <td><span class="badge bg-light text-dark border" style="font-size: 0.75rem;">{{ comp.type }}</span></td>
+                                    <td><small class="font-monospace text-muted" style="font-size: 0.75rem;">{{ comp.numeroSerie ?? '-' }}</small></td>
+                                    <td>
+                                        {% if comp.ageAnnees is not null %}
+                                            {% if comp.isObsolete %}
+                                                <span class="badge badge-age-obsolete" style="font-size: 0.7rem;">{{ comp.ageAnnees }} ans</span>
+                                            {% elseif comp.isVieillissant %}
+                                                <span class="badge badge-age-warning" style="font-size: 0.7rem;">{{ comp.ageAnnees }} ans</span>
+                                            {% else %}
+                                                <span class="badge badge-age-ok" style="font-size: 0.7rem;">{{ comp.ageAnnees }} ans</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <small class="text-muted">-</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border" style="font-size: 0.75rem;">{{ comp.statut }}</span>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-3 text-muted small">Aucun composant spécifique rattaché à cette machine.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tickets de maintenance -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="fw-bold small text-danger"><i class="bi bi-tools me-1"></i> Historique des Pannes & Réparations</span>
+                <a href="{{ path('app_maintenance_new', {'equipement_id': equipement.id}) }}" class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size: 0.78rem;">
+                    + Déclarer panne
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small">
+                            <tr>
+                                <th>Incident</th>
+                                <th>Date</th>
+                                <th>Priorité</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ticket in tickets %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold text-dark small">{{ ticket.titre }}</div>
+                                        <small class="text-muted" style="font-size: 0.75rem;">{{ ticket.technicien ? ('Par ' ~ ticket.technicien) : 'Non assigné' }}</small>
+                                    </td>
+                                    <td><small style="font-size: 0.8rem;">{{ ticket.dateCreation|date('d/m/Y') }}</small></td>
+                                    <td>
+                                        <span class="badge bg-{{ ticket.priorite == 'Critique' or ticket.priorite == 'Haute' ? 'danger' : 'warning' }}-subtle text-dark border" style="font-size: 0.75rem;">
+                                            {{ ticket.priorite }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if ticket.statut == 'Résolu' %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.75rem;">Résolu</span>
+                                        {% else %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.75rem;">{{ ticket.statut }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-3 text-muted small">Aucun incident technique enregistré.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Historique des préparations checklist ── #}
+{% if preparations is defined and preparations|length > 0 %}
+{{ include('checklist/_historique.html.twig', {preparations: preparations, equipement: equipement}) }}
+{% endif %}
+
+{% endblock %}
+
+{% block modals %}
+{# ===== Modale Attribution Rapide ===== #}
+<div class="modal fade" id="modalAttribuerRapide" tabindex="-1" aria-labelledby="modalAttribuerRapideLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 540px;">
+        <div class="modal-content border-0 shadow-lg">
+
+            {# En-tête #}
+            <div class="modal-header border-0 pb-1 px-4 pt-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width: 44px; height: 44px; background: #121212; color: #E47000;">
+                        <i class="bi bi-person-plus-fill fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="modalAttribuerRapideLabel">Attribuer l'équipement</h5>
+                        <p class="text-muted small mb-0">
+                            <i class="bi bi-pc-display me-1"></i>
+                            <strong>{{ equipement.nom }}</strong>
+                            {% if equipement.marque %} — {{ equipement.marque }}{% endif %}
+                        </p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+
+            {# Corps du formulaire #}
+            <form method="post" action="{{ path('app_equipement_attribuer_rapide', {id: equipement.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('attribuer_rapide_' ~ equipement.id) }}">
+
+                <div class="modal-body px-4 py-3">
+
+                    {# Info équipement #}
+                    <div class="d-flex align-items-center gap-2 p-3 rounded-3 border mb-3"
+                         style="background: #F9FAFB;">
+                        <i class="bi bi-info-circle text-muted"></i>
+                        <span class="small text-muted">
+                            Cette attribution passera automatiquement le statut de l'équipement à
+                            <strong class="text-success">En service</strong>.
+                        </span>
+                    </div>
+
+                    {# Bénéficiaire par défaut : Liste du Personnel GTA #}
+                    <div class="mb-3">
+                        <label for="attr_personnel_id" class="form-label fw-bold small">
+                            <i class="bi bi-people-fill me-1 text-primary"></i>
+                            Personnel bénéficiaire (Par défaut) <span class="text-danger">*</span>
+                        </label>
+                        <select id="attr_personnel_id" name="personnel_id" class="form-select" onchange="onQuickModalPersonnelChange(this)">
+                            <option value="">-- Choisir un collaborateur dans la liste GTA --</option>
+                            {% set currentGroup = '' %}
+                            {% for p in personnels|default([]) %}
+                                {% if p.type != currentGroup %}
+                                    {% if currentGroup != '' %}</optgroup>{% endif %}
+                                    {% set currentGroup = p.type %}
+                                    <optgroup label="{% if p.type == 'Employé' %}👔 Employés (Salariés){% elseif p.type == 'Prestataire' %}💼 Prestataires & Consultants{% elseif p.type == 'Stagiaire' %}🎓 Stagiaires & Alternants{% elseif p.type == 'Visiteur' %}🏷️ Visiteurs{% else %}👤 Autre Personnel{% endif %}">
+                                {% endif %}
+                                <option value="{{ p.id }}"
+                                        data-nom="{{ p.nom }}"
+                                        data-service="{{ p.service|default('') }}"
+                                        data-matricule="{{ p.matricule }}"
+                                        data-type="{{ p.type }}"
+                                        data-active-atts="{{ p.activeAttributionsCount }}">
+                                    {{ p.nom }} — {{ p.matricule }} ({{ p.service|default('Sans direction') }})
+                                </option>
+                            {% endfor %}
+                            {% if currentGroup != '' %}</optgroup>{% endif %}
+                        </select>
+                        <div class="form-text small" style="font-size: 0.72rem;">
+                            Sélectionnez directement le collaborateur parmi l'effectif GTA.
+                        </div>
+                    </div>
+
+                    {# Carte Aperçu du Personnel sélectionné #}
+                    <div id="quickPersonnelCardPreview" class="card mb-3 border-0 shadow-sm d-none" style="background: #f8fafc; border-left: 4px solid var(--gta-orange) !important; border-radius: 8px;">
+                        <div class="card-body p-2 px-3">
+                            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0" style="width: 34px; height: 34px; background: linear-gradient(135deg, var(--gta-orange) 0%, #ff8c1a 100%); font-size: 0.85rem;">
+                                        <i class="bi bi-person-fill"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold small text-dark" id="quickPreviewNom">-</div>
+                                        <div class="d-flex align-items-center gap-1 flex-wrap" style="font-size: 0.7rem;">
+                                            <span class="badge bg-dark font-monospace text-warning px-1 py-0" id="quickPreviewMatricule">-</span>
+                                            <span class="badge" id="quickPreviewTypeBadge">-</span>
+                                            <span class="text-muted" id="quickPreviewService">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-success-subtle text-success border fw-bold" style="font-size: 0.7rem;">
+                                        <i class="bi bi-laptop me-1"></i><span id="quickPreviewAttsCount">0</span> machine(s)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Notice Intelligente de Remplacement (Unicité de PC/Imprimante par collaborateur) #}
+                    <div id="quickConflictNoticeBlock" class="alert alert-warning border-0 shadow-sm p-3 rounded-3 mb-3 d-none" style="background: rgba(228, 112, 0, 0.08); border-left: 4px solid var(--gta-orange) !important;">
+                        <div class="d-flex align-items-start gap-2">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 32px; height: 32px; background: rgba(228, 112, 0, 0.18); color: var(--gta-orange);">
+                                <i class="bi bi-arrow-repeat fs-6"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+                                    <strong class="text-dark small">
+                                        <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>Remplacement de matériel
+                                    </strong>
+                                    <span class="badge bg-warning text-dark font-monospace" style="font-size: 0.65rem;">Unicité DSI</span>
+                                </div>
+                                <p class="text-muted mb-2" style="font-size: 0.75rem;">
+                                    Ce collaborateur dispose déjà d'un matériel actif dans cette catégorie :<br>
+                                    <span class="fw-bold text-dark" id="quickConflictDeviceName">-</span>
+                                </p>
+
+                                <div class="card p-2 px-3 border-0 bg-white shadow-sm rounded-2">
+                                    <div class="fw-bold text-dark mb-1" style="font-size: 0.75rem;">Que faire de l'ancien matériel ?</div>
+                                    
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input" type="radio" name="old_equipment_action" id="quickActionStock" value="stock" checked onchange="toggleQuickReassignSelect(this.value)">
+                                        <label class="form-check-label text-dark" for="quickActionStock" style="font-size: 0.75rem;">
+                                            📦 <strong>Remettre l'ancien matériel en stock</strong> (restitution automatique).
+                                        </label>
+                                    </div>
+
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input" type="radio" name="old_equipment_action" id="quickActionReassign" value="reassign" onchange="toggleQuickReassignSelect(this.value)">
+                                        <label class="form-check-label text-dark" for="quickActionReassign" style="font-size: 0.75rem;">
+                                            🔄 <strong>Transférer immédiatement à un autre collègue</strong>
+                                        </label>
+                                    </div>
+
+                                    <div id="quickReassignSelectWrapper" class="ms-3 mt-1 d-none">
+                                        <label class="form-label text-muted mb-1" style="font-size: 0.7rem;">Nouveau bénéficiaire :</label>
+                                        <select name="reassign_personnel_id" id="quickReassignPersonnelSelect" class="form-select form-select-sm" style="font-size: 0.75rem;">
+                                            <option value="">-- Choisir un collaborateur --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Saisie manuelle occasionnelle (repliée) #}
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-sm btn-link text-muted p-0 text-decoration-none d-inline-flex align-items-center gap-1" data-bs-toggle="collapse" data-bs-target="#collapseManualBeneficiaire" aria-expanded="false" aria-controls="collapseManualBeneficiaire">
+                            <i class="bi bi-pencil-square"></i>
+                            <span class="small fst-italic">Saisie manuelle d'un bénéficiaire occasionnel / externe</span>
+                        </button>
+
+                        <div class="collapse mt-2" id="collapseManualBeneficiaire">
+                            <div class="card card-body bg-light-subtle border p-3 rounded-3">
+                                <div class="mb-2">
+                                    <label for="attr_beneficiaireNom" class="form-label small fw-semibold">Nom du bénéficiaire :</label>
+                                    <input type="text"
+                                           id="attr_beneficiaireNom"
+                                           name="beneficiaireNom"
+                                           class="form-control form-control-sm"
+                                           placeholder="Ex : Kouamé Jean-Pierre"
+                                           autocomplete="off">
+                                </div>
+                                <div>
+                                    <label for="attr_beneficiaireService" class="form-label small fw-semibold">Service / Département :</label>
+                                    <input type="text"
+                                           id="attr_beneficiaireService"
+                                           name="beneficiaireService"
+                                           class="form-control form-control-sm"
+                                           placeholder="Ex : Direction Financière"
+                                           autocomplete="off">
+                                </div>
+                                <div class="form-text small mt-1 text-muted" style="font-size: 0.7rem;">
+                                    Ces champs se synchronisent automatiquement si vous choisissez un personnel ci-dessus.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Dates #}
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label for="attr_dateDebut" class="form-label fw-semibold small">
+                                <i class="bi bi-calendar-event me-1 text-secondary"></i>
+                                Date de début
+                            </label>
+                            <input type="date"
+                                   id="attr_dateDebut"
+                                   name="dateDebut"
+                                   class="form-control"
+                                   value="{{ 'now'|date('Y-m-d') }}">
+                        </div>
+                        <div class="col-6">
+                            <label for="attr_dateFin" class="form-label fw-semibold small">
+                                <i class="bi bi-calendar-x me-1 text-secondary"></i>
+                                Fin prévue
+                                <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size: 0.68rem;">Optionnel</span>
+                            </label>
+                            <input type="date"
+                                   id="attr_dateFin"
+                                   name="dateFin"
+                                   class="form-control">
+                        </div>
+                    </div>
+
+                    {# Motif #}
+                    <div class="mb-1">
+                        <label for="attr_motif" class="form-label fw-semibold small">
+                            <i class="bi bi-chat-left-text me-1 text-secondary"></i>
+                            Motif d'attribution
+                            <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size: 0.68rem;">Optionnel</span>
+                        </label>
+                        <textarea id="attr_motif"
+                                  name="motif"
+                                  class="form-control"
+                                  rows="2"
+                                  placeholder="Ex : Dotation poste de travail, renouvellement…"></textarea>
+                    </div>
+
+                </div>
+
+                {# Pied #}
+                <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex justify-content-between align-items-center">
+                    <a href="{{ path('app_attribution_new', {'equipement_id': equipement.id}) }}"
+                       class="text-muted small d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                        <span>Formulaire complet</span>
+                    </a>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">
+                            <i class="bi bi-x-lg me-1"></i>Annuler
+                        </button>
+                        <button type="submit" class="btn btn-dark btn-sm fw-bold px-4 d-inline-flex align-items-center gap-2">
+                            <i class="bi bi-check2-circle"></i>
+                            <span>Valider l'attribution</span>
+                        </button>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    var currentEquipementId = {{ equipement.id }};
+    var currentEquipementFamily = '{{ equipement_family }}';
+    var personnelActiveDevices = {{ personnel_active_devices|json_encode|raw }};
+
+    function toggleQuickReassignSelect(val) {
+        var wrapper = document.getElementById('quickReassignSelectWrapper');
+        if (wrapper) {
+            wrapper.classList.toggle('d-none', val !== 'reassign');
+        }
+    }
+
+    function populateQuickReassignOptions(currentPersonnelId) {
+        var pSelect = document.getElementById('attr_personnel_id');
+        var reassignSelect = document.getElementById('quickReassignPersonnelSelect');
+        if (!pSelect || !reassignSelect) return;
+
+        var currentSelected = reassignSelect.value;
+        reassignSelect.innerHTML = '<option value="">-- Choisir un collaborateur --</option>';
+
+        Array.from(pSelect.options).forEach(function(opt) {
+            if (!opt.value || opt.value === String(currentPersonnelId)) return;
+            var newOpt = document.createElement('option');
+            newOpt.value = opt.value;
+            newOpt.textContent = opt.textContent;
+            if (newOpt.value === currentSelected) newOpt.selected = true;
+            reassignSelect.appendChild(newOpt);
+        });
+    }
+
+    function checkQuickConflict(personnelId) {
+        var notice = document.getElementById('quickConflictNoticeBlock');
+        var deviceSpan = document.getElementById('quickConflictDeviceName');
+        if (!notice) return;
+
+        // Seules les catégories individuelles (laptop, bureau, imprimante) sont restreintes — un collaborateur peut avoir 1 laptop + 1 bureau simultanément
+        if (currentEquipementFamily !== 'laptop' && currentEquipementFamily !== 'desktop' && currentEquipementFamily !== 'printer') {
+            notice.classList.add('d-none');
+            return;
+        }
+
+        if (!personnelId || !personnelActiveDevices[personnelId]) {
+            notice.classList.add('d-none');
+            return;
+        }
+
+        var devices = personnelActiveDevices[personnelId] || [];
+        var conflicting = devices.find(function(d) {
+            return d.family === currentEquipementFamily && String(d.id) !== String(currentEquipementId);
+        });
+
+        if (conflicting) {
+            notice.classList.remove('d-none');
+            if (deviceSpan) {
+                deviceSpan.textContent = conflicting.nom + ' (' + conflicting.catNom + ' — S/N: ' + conflicting.sn + ')';
+            }
+            populateQuickReassignOptions(personnelId);
+        } else {
+            notice.classList.add('d-none');
+        }
+    }
+
+    function onQuickModalPersonnelChange(select) {
+        var opt = select.selectedOptions ? select.selectedOptions[0] : null;
+        var preview = document.getElementById('quickPersonnelCardPreview');
+        var inputNom = document.getElementById('attr_beneficiaireNom');
+        var inputService = document.getElementById('attr_beneficiaireService');
+
+        if (!opt || !opt.value) {
+            if (preview) preview.classList.add('d-none');
+            checkQuickConflict(null);
+            return;
+        }
+
+        var nom = opt.getAttribute('data-nom') || '';
+        var service = opt.getAttribute('data-service') || '';
+        var matricule = opt.getAttribute('data-matricule') || '';
+        var type = opt.getAttribute('data-type') || 'Employé';
+        var atts = opt.getAttribute('data-active-atts') || '0';
+
+        if (inputNom) inputNom.value = nom;
+        if (inputService) inputService.value = service;
+
+        if (preview) {
+            preview.classList.remove('d-none');
+            document.getElementById('quickPreviewNom').textContent = nom;
+            document.getElementById('quickPreviewMatricule').textContent = matricule;
+            document.getElementById('quickPreviewService').textContent = service || 'Sans direction';
+            document.getElementById('quickPreviewAttsCount').textContent = atts;
+
+            var typeBadge = document.getElementById('quickPreviewTypeBadge');
+            if (typeBadge) {
+                typeBadge.className = 'badge rounded-pill px-2 py-0 ';
+                if (type === 'Employé') {
+                    typeBadge.className += 'bg-success-subtle text-success border border-success-subtle';
+                    typeBadge.innerHTML = '👔 Employé';
+                } else if (type === 'Prestataire') {
+                    typeBadge.className += 'bg-primary-subtle text-primary border border-primary-subtle';
+                    typeBadge.innerHTML = '💼 Prestataire';
+                } else if (type === 'Stagiaire') {
+                    typeBadge.className += 'bg-purple-subtle text-purple border';
+                    typeBadge.style.color = '#9333ea';
+                    typeBadge.innerHTML = '🎓 Stagiaire';
+                } else if (type === 'Visiteur') {
+                    typeBadge.className += 'bg-warning-subtle text-warning border border-warning-subtle';
+                    typeBadge.innerHTML = '🏷️ Visiteur';
+                } else {
+                    typeBadge.className += 'bg-secondary-subtle text-secondary border';
+                    typeBadge.innerHTML = type;
+                }
+            }
+        }
+
+        checkQuickConflict(opt.value);
+    }
+</script>
+
+{# Auto-ouverture de la modale si ?attribuer=1 (juste après création d'un équipement) #}
+{% if app.request.query.get('attribuer') == '1' %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var modalEl = document.getElementById('modalAttribuerRapide');
+        if (modalEl && typeof bootstrap !== 'undefined') {
+            var modal = new bootstrap.Modal(modalEl);
+            modal.show();
+            setTimeout(function() {
+                var select = document.getElementById('attr_personnel_id');
+                if (select) select.focus();
+            }, 300);
+        }
+    });
+</script>
+{% endif %}
+
+{# ═══════════════════════════════════════════════════════════════
+   MODAL CHECKLIST DE PRÉPARATION / VÉRIFICATION
+═══════════════════════════════════════════════════════════════ #}
+{% if equipement.isEligiblePreparation or (preparations is defined and preparations|length > 0) %}
+<div class="modal fade" id="modalChecklist" tabindex="-1" aria-labelledby="modalChecklistLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width: 700px;">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+
+            {# ── En-tête du modal ── #}
+            <div class="modal-header border-0 px-4 pt-4 pb-2">
+                <div class="d-flex align-items-center gap-3 flex-grow-1">
+                    <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width:44px;height:44px; background:linear-gradient(135deg,#111317,#2d3748);">
+                        <i class="bi bi-clipboard2-check-fill text-warning fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="modalChecklistLabel">
+                            {% if equipement.statut == 'En service' %}
+                                Sauvegarde &amp; Préparation
+                            {% else %}
+                                Vérification &amp; Installation
+                            {% endif %}
+                        </h5>
+                        <small class="text-muted">{{ equipement.nom }} — {{ equipement.marque }} {{ equipement.modele }}</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+
+            {# ── Corps : écran de démarrage ou wizard chargé en AJAX ── #}
+            <div class="modal-body px-4 pb-4" id="checklistModalBody">
+
+                {# ── Écran initial : bouton démarrer ── #}
+                <div id="checklistStartScreen">
+                    <div class="text-center py-4">
+                        {% if equipement.statut == 'En service' %}
+                        <div class="mb-3">
+                            <span class="badge rounded-pill px-4 py-2 fs-6" style="background:#fff3e0;color:#E47000;border:2px solid #E47000;">
+                                <i class="bi bi-hdd-stack me-2"></i>Machine en service détectée
+                            </span>
+                        </div>
+                        <p class="text-muted mb-1">Cette machine est <strong>actuellement en service</strong>.</p>
+                        <p class="text-muted small mb-4">
+                            La checklist commencera par la <strong>sauvegarde</strong> de toutes les données
+                            de l'utilisateur sur le disque externe, puis enchaînera sur les étapes d'installation.
+                        </p>
+                        <div class="row g-3 text-start mb-4">
+                            <div class="col-6">
+                                <div class="p-3 rounded-3 border" style="background:#fffbf5;">
+                                    <div class="fw-semibold text-dark mb-1 small">
+                                        <i class="bi bi-1-circle-fill text-warning me-1"></i> Phase 1 — Sauvegarde
+                                    </div>
+                                    <ul class="list-unstyled mb-0 text-muted" style="font-size:.8rem;">
+                                        <li><i class="bi bi-folder-symlink me-1"></i>Disque C : Bureau</li>
+                                        <li><i class="bi bi-file-earmark-text me-1"></i>Disque C : Documents</li>
+                                        <li><i class="bi bi-folder2-open me-1"></i>Disque C : Autres</li>
+                                        <li><i class="bi bi-hdd me-1"></i>Disque D : Tout</li>
+                                        <li><i class="bi bi-device-hdd me-1"></i>Disques supplémentaires</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 rounded-3 border" style="background:#f8f9ff;">
+                                    <div class="fw-semibold text-dark mb-1 small">
+                                        <i class="bi bi-2-circle-fill text-primary me-1"></i> Phase 2 — Installation
+                                    </div>
+                                    <ul class="list-unstyled mb-0 text-muted" style="font-size:.8rem;">
+                                        <li><i class="bi bi-windows me-1"></i>Réinstallation OS</li>
+                                        <li><i class="bi bi-globe2 me-1"></i>ORASS (Netscape + JInit)</li>
+                                        <li><i class="bi bi-microsoft me-1"></i>Office + activation</li>
+                                        <li><i class="bi bi-shield-check me-1"></i>Kaspersky + Agent</li>
+                                        <li><i class="bi bi-pie-chart me-1"></i>Partition disque…</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="mb-3">
+                            <span class="badge rounded-pill px-4 py-2 fs-6 bg-secondary">
+                                <i class="bi bi-box-seam me-2"></i>Machine en stock
+                            </span>
+                        </div>
+                        <p class="text-muted mb-4">
+                            La checklist guidera les <strong>8 étapes d'installation</strong>
+                            standards du parc GTAC2A-IARDT.
+                        </p>
+                        <div class="p-3 rounded-3 border text-start mb-4 mx-auto" style="max-width:320px;background:#f8f9ff;">
+                            <ul class="list-unstyled mb-0 text-muted" style="font-size:.85rem;">
+                                <li class="py-1 border-bottom"><i class="bi bi-windows me-2 text-primary"></i>Réinstallation OS</li>
+                                <li class="py-1 border-bottom"><i class="bi bi-globe2 me-2 text-primary"></i>ORASS (Netscape + JInit)</li>
+                                <li class="py-1 border-bottom"><i class="bi bi-microsoft me-2 text-primary"></i>Microsoft Office + activation</li>
+                                <li class="py-1 border-bottom"><i class="bi bi-file-zip me-2 text-primary"></i>WinZip</li>
+                                <li class="py-1 border-bottom"><i class="bi bi-file-earmark-zip me-2 text-primary"></i>WinRAR</li>
+                                <li class="py-1 border-bottom"><i class="bi bi-shield-check me-2 text-primary"></i>Kaspersky + Agent</li>
+                                <li class="py-1 border-bottom"><i class="bi bi-browser-chrome me-2 text-primary"></i>Google Chrome</li>
+                                <li class="py-1"><i class="bi bi-pie-chart me-2 text-primary"></i>Partitionnement du disque</li>
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <form id="checklistStartForm"
+                              data-action="{{ path('app_checklist_demarrer', {'id': equipement.id}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('checklist_demarrer_' ~ equipement.id) }}" id="checklistCsrfToken">
+                            <button type="button"
+                                    class="btn btn-lg fw-bold px-5 shadow-sm d-inline-flex align-items-center gap-2"
+                                    style="background:linear-gradient(135deg,#E47000,#ff9933);color:#fff;border:none;border-radius:1rem;"
+                                    onclick="demarrerChecklist()">
+                                <i class="bi bi-play-circle-fill"></i>
+                                Lancer la checklist
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                {# ── Zone de chargement (spinner) ── #}
+                <div id="checklistLoadingScreen" class="text-center py-5 d-none">
+                    <div class="spinner-border text-warning mb-3" role="status" style="width:3rem;height:3rem;">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <div class="text-muted">Initialisation de la checklist…</div>
+                </div>
+
+                {# ── Zone du wizard (chargée en AJAX) ── #}
+                <div id="checklistWizardScreen" class="d-none">
+                    {# Contenu injecté dynamiquement #}
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    'use strict';
+
+    /* ═══ ÉTAT GLOBAL ═══════════════════════════════════════════ */
+    var equipementId = {{ equipement.id }};
+
+    /* ═══ STEPPER PAS-À-PAS INTERACTIF ═════════════════════════ */
+    window.initStepper = function(targetStep) {
+        var container = document.getElementById('checklistWizardContent');
+        if (!container) return;
+
+        var totalSteps = parseInt(container.getAttribute('data-total-steps'), 10) || 0;
+        var defaultStep = parseInt(container.getAttribute('data-default-step'), 10) || 0;
+        var statut = container.getAttribute('data-statut') || '';
+
+        // Si la checklist est terminée et qu'aucune étape précise n'est demandée, afficher le bilan
+        if (statut === 'terminee' && (targetStep === undefined || targetStep === 'bilan')) {
+            window.goToBilan();
+            return;
+        }
+
+        var initialStep = defaultStep;
+        if (typeof targetStep === 'number' && targetStep >= 0 && targetStep < totalSteps) {
+            initialStep = targetStep;
+        }
+
+        if (targetStep === 'bilan') {
+            window.goToBilan();
+        } else {
+            window.goToStep(initialStep);
+        }
+    };
+
+    window.goToStep = function(stepIndex) {
+        var container = document.getElementById('checklistWizardContent');
+        if (!container) return;
+
+        var totalSteps = parseInt(container.getAttribute('data-total-steps'), 10) || 0;
+        if (stepIndex < 0 || stepIndex >= totalSteps) return;
+
+        // Cacher toutes les cartes et afficher la carte ciblée
+        for (var i = 0; i < totalSteps; i++) {
+            var pane = document.getElementById('stepPane_' + i);
+            if (pane) pane.style.display = (i === stepIndex) ? 'block' : 'none';
+
+            // Mettre à jour l'effet sur la pastille
+            var circle = document.getElementById('stepCircle_' + i);
+            var label = document.getElementById('stepMiniLabel_' + i);
+            if (circle) {
+                if (i === stepIndex) {
+                    circle.style.transform = 'scale(1.22)';
+                    circle.style.boxShadow = '0 0 0 3px rgba(228, 112, 0, 0.45)';
+                    if (label) {
+                        label.classList.add('fw-bold', 'text-dark');
+                        label.classList.remove('text-muted');
+                    }
+                } else {
+                    circle.style.transform = 'scale(1)';
+                    circle.style.boxShadow = 'none';
+                    if (label) {
+                        label.classList.remove('fw-bold', 'text-dark');
+                        label.classList.add('text-muted');
+                    }
+                }
+            }
+        }
+
+        // Cacher le bilan
+        var bilanPane = document.getElementById('stepPane_bilan');
+        if (bilanPane) bilanPane.style.display = 'none';
+
+        // Mettre à jour le compteur en haut
+        var displayNum = document.getElementById('currentStepNumDisplay');
+        if (displayNum) displayNum.textContent = (stepIndex + 1);
+
+        // Défiler le stepper horizontal pour centrer la pastille active
+        var bubble = document.getElementById('stepBubble_' + stepIndex);
+        if (bubble && bubble.scrollIntoView) {
+            bubble.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    };
+
+    window.goToBilan = function() {
+        var container = document.getElementById('checklistWizardContent');
+        if (!container) return;
+
+        var totalSteps = parseInt(container.getAttribute('data-total-steps'), 10) || 0;
+        for (var i = 0; i < totalSteps; i++) {
+            var pane = document.getElementById('stepPane_' + i);
+            if (pane) pane.style.display = 'none';
+        }
+        var bilanPane = document.getElementById('stepPane_bilan');
+        if (bilanPane) bilanPane.style.display = 'block';
+
+        var displayNum = document.getElementById('currentStepNumDisplay');
+        if (displayNum) displayNum.textContent = 'Bilan';
+    };
+
+    window.validerEtapeStep = function(etapeId, statut, preparationId, eqId, csrfToken, stepIdx) {
+        var container = document.getElementById('checklistWizardContent');
+        var totalSteps = container ? (parseInt(container.getAttribute('data-total-steps'), 10) || 0) : 0;
+
+        var obs = '';
+        var obsInput = document.getElementById('obsInputStep_' + stepIdx);
+        if (obsInput) obs = obsInput.value.trim();
+
+        var body = new FormData();
+        body.append('_token', csrfToken);
+        body.append('statut', statut);
+        if (obs) body.append('observations', obs);
+
+        var circle = document.getElementById('stepCircle_' + stepIdx);
+        if (circle) circle.style.opacity = '0.5';
+
+        fetch('/equipements/' + eqId + '/checklist/' + preparationId + '/etape/' + etapeId + '/valider', {
+            method: 'POST',
+            body: body,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                if (data.checklistTerminee || stepIdx >= totalSteps - 1) {
+                    window.rechargerWizard(preparationId, eqId, data.checklistTerminee, 'bilan');
+                } else {
+                    window.rechargerWizard(preparationId, eqId, false, stepIdx + 1);
+                }
+            }
+        })
+        .catch(function() {
+            if (circle) circle.style.opacity = '1';
+            alert('Erreur lors de la validation.');
+        });
+    };
+
+    window.ajouterDisqueDepuisStep = function(preparationId, csrfToken, currentIdx) {
+        var input = document.getElementById('inputDisqueStep_' + currentIdx);
+        if (!input) return;
+        var libelle = input.value.trim();
+        if (!libelle) {
+            alert('Veuillez renseigner le nom ou la lettre du disque.');
+            return;
+        }
+
+        var body = new FormData();
+        body.append('_token', csrfToken);
+        body.append('libelle_disque', libelle);
+
+        fetch('/equipements/' + equipementId + '/checklist/' + preparationId + '/ajouter-disque', {
+            method: 'POST',
+            body: body,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                window.rechargerWizard(preparationId, equipementId, false, currentIdx + 1);
+            }
+        })
+        .catch(function() {
+            alert('Erreur lors de l\'ajout du disque.');
+        });
+    };
+
+    /* ═══ DÉMARRAGE ═════════════════════════════════════════════ */
+    window.demarrerChecklist = function() {
+        var form   = document.getElementById('checklistStartForm');
+        var token  = document.getElementById('checklistCsrfToken');
+        if (!form) return;
+
+        afficherEcran('loading');
+
+        var body = new FormData();
+        body.append('_token', token ? token.value : '');
+
+        fetch(form.dataset.action, { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                document.getElementById('checklistWizardScreen').innerHTML = html;
+                afficherEcran('wizard');
+                window.initStepper();
+            })
+            .catch(function() {
+                afficherEcran('start');
+                alert('Erreur lors du démarrage de la checklist.');
+            });
+    };
+
+    /* ═══ PRÉPARATION NOUVELLE CHECKLIST (BOUTON DU HAUT) ══════ */
+    window.preparerNouveauModal = function() {
+        afficherEcran('start');
+        var ws = document.getElementById('checklistWizardScreen');
+        if (ws) ws.innerHTML = '';
+    };
+
+    /* ═══ CHARGER UNE CHECKLIST EXISTANTE (HISTORIQUE) ══════════ */
+    window.ouvrirChecklistExistante = function(preparationId, eqId) {
+        var modal = document.getElementById('modalChecklist');
+        if (!modal) {
+            alert('Modale introuvable.');
+            return;
+        }
+
+        var bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+
+        var ws = document.getElementById('checklistWizardScreen');
+        if (ws) ws.innerHTML = '';
+        afficherEcran('loading');
+        bsModal.show();
+
+        fetch('/equipements/' + eqId + '/checklist/' + preparationId, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('Erreur HTTP ' + r.status);
+            return r.text();
+        })
+        .then(function(html) {
+            if (ws) ws.innerHTML = html;
+            afficherEcran('wizard');
+            window.initStepper();
+        })
+        .catch(function(err) {
+            console.error(err);
+            afficherEcran('start');
+            alert('Impossible de charger cette session de préparation.');
+        });
+    };
+
+    /* ═══ VALIDER UNE ÉTAPE ═════════════════════════════════════ */
+    window.validerEtape = function(etapeId, statut, preparationId, eqId, csrfToken) {
+        var obs = '';
+        var obsField = document.getElementById('obs-text-' + etapeId);
+        if (obsField) obs = obsField.value;
+
+        var card = document.getElementById('etape-card-' + etapeId);
+        if (card) card.style.opacity = '0.6';
+
+        var body = new FormData();
+        body.append('_token', csrfToken);
+        body.append('statut', statut);
+        if (obs) body.append('observations', obs);
+
+        fetch('/equipements/' + eqId + '/checklist/' + preparationId + '/etape/' + etapeId + '/valider', {
+            method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    // Recharger le wizard complet pour refléter l'état
+                    rechargerWizard(preparationId, eqId, data.checklistTerminee);
+                }
+            })
+            .catch(function() {
+                if (card) card.style.opacity = '1';
+                alert('Erreur lors de la validation.');
+            });
+    };
+
+    /* ═══ RÉ-OUVRIR UNE ÉTAPE ═══════════════════════════════════ */
+    window.reouvrirEtape = function(etapeId, preparationId, eqId, csrfToken) {
+        var body = new FormData();
+        body.append('_token', csrfToken);
+        body.append('statut', 'en_attente');
+
+        fetch('/equipements/' + eqId + '/checklist/' + preparationId + '/etape/' + etapeId + '/valider', {
+            method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) rechargerWizard(preparationId, eqId, false);
+            });
+    };
+
+    /* ═══ AJOUTER UN DISQUE SUPPLÉMENTAIRE ══════════════════════ */
+    window.afficherAjoutDisque = function(preparationId) {
+        var form = document.getElementById('ajoutDisqueForm_' + preparationId);
+        if (form) form.classList.toggle('d-none');
+    };
+
+    window.ajouterDisque = function(preparationId, csrfToken) {
+        var libelle = document.getElementById('libelleDisque_' + preparationId).value.trim();
+        if (!libelle) { alert('Veuillez renseigner le libellé du disque (ex: E: — Archives).'); return; }
+
+        var body = new FormData();
+        body.append('_token', csrfToken);
+        body.append('libelle_disque', libelle);
+
+        fetch('/equipements/' + equipementId + '/checklist/' + preparationId + '/ajouter-disque', {
+            method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) rechargerWizard(preparationId, equipementId, false);
+            })
+            .catch(function() { alert('Erreur lors de l\'ajout du disque.'); });
+    };
+
+    /* ═══ TERMINER / ABANDONNER ════════════════════════════════ */
+    window.terminerChecklist = function(preparationId, csrfToken, eqId) {
+        var body = new FormData();
+        body.append('_token', csrfToken);
+        body.append('statut', 'terminee');
+
+        fetch('/equipements/' + eqId + '/checklist/' + preparationId + '/cloturer', {
+            method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) rechargerWizard(preparationId, eqId, true);
+            });
+    };
+
+    window.abandonnerChecklist = function(preparationId, csrfToken, eqId) {
+        if (!confirm('Voulez-vous vraiment abandonner cette session de préparation ?')) return;
+
+        var body = new FormData();
+        body.append('_token', csrfToken);
+        body.append('statut', 'abandonnee');
+
+        fetch('/equipements/' + eqId + '/checklist/' + preparationId + '/cloturer', {
+            method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    afficherEcran('start');
+                    location.reload();
+                }
+            });
+    };
+
+    /* ═══ AFFICHER UN FORMULAIRE D'OBSERVATIONS ════════════════ */
+    window.afficherObsEtape = function(etapeId) {
+        var form = document.getElementById('obs-form-' + etapeId);
+        if (form) {
+            form.classList.toggle('d-none');
+            var textarea = document.getElementById('obs-text-' + etapeId);
+            if (textarea && !form.classList.contains('d-none')) textarea.focus();
+        }
+    };
+
+    /* ═══ UTILITAIRES ═══════════════════════════════════════════ */
+    window.rechargerWizard = function(preparationId, eqId, estTerminee, targetStep) {
+        afficherEcran('loading');
+
+        fetch('/equipements/' + eqId + '/checklist/' + preparationId, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                document.getElementById('checklistWizardScreen').innerHTML = html;
+                afficherEcran('wizard');
+
+                // Positionner sur l'étape cible, le bilan, ou la première étape en attente
+                if (targetStep === 'bilan') {
+                    window.goToBilan();
+                } else if (typeof targetStep === 'number') {
+                    window.goToStep(targetStep);
+                } else {
+                    window.initStepper();
+                }
+
+                if (estTerminee) {
+                    setTimeout(function() {
+                        var modal = document.getElementById('modalChecklist');
+                        if (modal) {
+                            modal.addEventListener('hidden.bs.modal', function() {
+                                location.reload();
+                            }, { once: true });
+                        }
+                    }, 200);
+                }
+            })
+            .catch(function() { afficherEcran('wizard'); });
+    };
+
+    function afficherEcran(nom) {
+        var screens = { start: 'checklistStartScreen', loading: 'checklistLoadingScreen', wizard: 'checklistWizardScreen' };
+        Object.keys(screens).forEach(function(k) {
+            var el = document.getElementById(screens[k]);
+            if (el) el.classList.toggle('d-none', k !== nom);
+        });
+    }
+
+})();
+</script>
+{% endif %}
+
+{% endblock %}

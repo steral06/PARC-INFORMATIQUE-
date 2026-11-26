@@ -1,0 +1,83 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nouvelle Campagne d'Inventaire | GTAC2A-IARDT{% endblock %}
+
+{% block body %}
+<div class="mb-3">
+    <a href="{{ path('app_inventaire_index') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 mb-2">
+        <i class="bi bi-arrow-left"></i>
+        <span>Retour aux campagnes</span>
+    </a>
+    <h1 class="h3 fw-bold mb-1" style="color: #121212;">Lancer une Campagne d'Inventaire</h1>
+    <p class="text-muted small">
+        Tous les équipements actuellement répertoriés dans le parc seront automatiquement injectés dans cette campagne en statut « En attente ».
+    </p>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <div class="card card-form shadow-sm border-0">
+            <div class="card-header bg-white py-3 border-bottom">
+                <span class="fw-bold small text-dark">
+                    <i class="bi bi-clipboard2-plus text-primary me-1"></i> Paramètres de la Campagne
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" action="{{ path('app_inventaire_new') }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('inventaire_new') }}">
+
+                    <div class="mb-3">
+                        <label for="titre" class="form-label fw-semibold">Titre de la campagne <span class="text-danger">*</span></label>
+                        <input type="text"
+                               name="titre"
+                               id="titre"
+                               class="form-control"
+                               placeholder="Ex : Inventaire Annuel {{ 'now'|date('Y') }} — Siège &amp; Agences"
+                               value="Inventaire Général {{ 'now'|date('Y') }}"
+                               required
+                               autofocus>
+                        <div class="form-text small">
+                            Donnez un nom explicite qui servira pour le procès-verbal officiel et les rapports d'écarts.
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="notes" class="form-label fw-semibold">Objectif &amp; Périmètre (optionnel)</label>
+                        <textarea name="notes"
+                                  id="notes"
+                                  rows="3"
+                                  class="form-control"
+                                  placeholder="Ex : Recensement physique de l'ensemble des postes de travail, serveurs et imprimantes du siège social. Contrôle de conformité de localisation et détection de pannes non signalées."></textarea>
+                    </div>
+
+                    <div class="alert alert-info border-0 p-3 rounded-3 mb-4" style="background: rgba(13, 110, 253, 0.08);">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-info-circle-fill text-primary mt-1"></i>
+                            <div class="small">
+                                <strong>Ce que fait cette action :</strong>
+                                <ul class="mb-0 ps-3 mt-1">
+                                    <li>Capture l'état instantané du parc (emplacement théorique, bénéficiaire).</li>
+                                    <li>Génère une feuille de pointage pour chaque machine.</li>
+                                    <li>Permet le pointage individuel (Conforme, Déplacé, Manquant, Hors service).</li>
+                                    <li>Calcul en direct du taux de couverture et des écarts.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <a href="{{ path('app_inventaire_index') }}" class="btn btn-outline-secondary px-4">
+                            <i class="bi bi-x-lg me-1"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 shadow">
+                            <i class="bi bi-check2-circle fs-5"></i>
+                            <span>Démarrer la campagne</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
